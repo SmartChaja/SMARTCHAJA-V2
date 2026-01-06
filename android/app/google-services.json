@@ -1,0 +1,70 @@
+{
+  "project_info": {
+    "project_number": "950587682922",
+    "project_id": "chaja-kiganjani",
+    "storage_bucket": "chaja-kiganjani.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:950587682922:android:8127ff4253473b2079da13",
+        "android_client_info": {
+          "package_name": "com.tjrsmartchaja.smartchaja"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "950587682922-1u2j7gvacjr82hf41pma4mfilg8tdn2c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tjrsmartchaja.smartchaja",
+            "certificate_hash": "16cbf408e58653864a0c9cbd8379bee2ca6a9cad"
+          }
+        },
+        {
+          "client_id": "950587682922-2o1ho42gmghvu3m1aqq3iaiv6k5td9pr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tjrsmartchaja.smartchaja",
+            "certificate_hash": "125eb4a2a9b9e34d969f94cb700c42f266347dce"
+          }
+        },
+        {
+          "client_id": "950587682922-i632bikl3bk385e2od5vhuevdcba3me6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tjrsmartchaja.smartchaja",
+            "certificate_hash": "66d6a129c5f82f329a7b01b3b3aaf384fa24044f"
+          }
+        },
+        {
+          "client_id": "950587682922-ljmfncf1bnjl52bolfb16t2egrlhukpn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZVa9zjuRegFeg0TL9ajGoRo4F_-U9dJI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "950587682922-ljmfncf1bnjl52bolfb16t2egrlhukpn.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "950587682922-6tootm4dqbtls1fimm31eh8p4a3bp3vl.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.tjrsmartchaja.smartchaja"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
