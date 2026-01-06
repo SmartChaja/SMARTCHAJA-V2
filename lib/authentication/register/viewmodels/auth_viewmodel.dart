@@ -1,11 +1,11 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_chaja/authentication/register/model/user_model.dart';
 import 'dart:io';
 import 'package:smart_chaja/authentication/register/repositories/auth_repository.dart';
 
-final authViewModelProvider = StateNotifierProvider<AuthViewModel, AuthState>((ref) {
+final authViewModelProvider =
+    StateNotifierProvider<AuthViewModel, AuthState>((ref) {
   return AuthViewModel(ref.read(authRepositoryProvider));
 });
 
@@ -102,7 +102,8 @@ class AuthViewModel extends StateNotifier<AuthState> {
     TextEditingController? pinController,
     Function()? onAutoVerificationCompleted,
   }) async {
-    state = state.copyWith(isLoading: true, error: null, phoneNumber: phoneNumber);
+    state =
+        state.copyWith(isLoading: true, error: null, phoneNumber: phoneNumber);
     bool codeSent = false;
     String? errorMessage;
 
@@ -111,7 +112,8 @@ class AuthViewModel extends StateNotifier<AuthState> {
         phoneNumber: state.phoneNumber!,
         pinController: pinController,
         onCodeSent: (verificationId) {
-          debugPrint('✅ onCodeSent triggered with verificationId: $verificationId');
+          debugPrint(
+              '✅ onCodeSent triggered with verificationId: $verificationId');
           state = state.copyWith(
             isLoading: false,
             verificationId: verificationId,
@@ -122,9 +124,12 @@ class AuthViewModel extends StateNotifier<AuthState> {
         onVerificationFailed: (error) {
           debugPrint('❌ onVerificationFailed: $error');
           if (error.contains('unusual activity') || error.contains('blocked')) {
-            errorMessage = 'Device temporarily blocked. Please try again later.';
-          } else if (error.contains('invalid phone') || error.contains('17010')) {
-            errorMessage = 'Invalid phone number format. Please check and try again.';
+            errorMessage =
+                'Device temporarily blocked. Please try again later.';
+          } else if (error.contains('invalid phone') ||
+              error.contains('17010')) {
+            errorMessage =
+                'Invalid phone number format. Please check and try again.';
           } else if (error.contains('quota exceeded')) {
             errorMessage = 'SMS quota exceeded. Please try again later.';
           } else if (error.contains('network')) {
@@ -147,10 +152,12 @@ class AuthViewModel extends StateNotifier<AuthState> {
         },
       );
 
-      debugPrint('🔍 sendOTP result: success=${result.success}, codeSent=$codeSent');
+      debugPrint(
+          '🔍 sendOTP result: success=${result.success}, codeSent=$codeSent');
       if (!result.success && !codeSent) {
         String finalError = result.message ?? 'Unknown error occurred';
-        if (finalError.contains('unusual activity') || finalError.contains('blocked')) {
+        if (finalError.contains('unusual activity') ||
+            finalError.contains('blocked')) {
           finalError = 'Device temporarily blocked. Please try again later.';
         }
         state = state.copyWith(
@@ -173,7 +180,8 @@ class AuthViewModel extends StateNotifier<AuthState> {
 
   Future<bool> verifyOTP(String smsCode) async {
     if (state.verificationId == null) {
-      state = state.copyWith(error: 'No verification ID found. Please request OTP again.');
+      state = state.copyWith(
+          error: 'No verification ID found. Please request OTP again.');
       return false;
     }
 
@@ -188,7 +196,8 @@ class AuthViewModel extends StateNotifier<AuthState> {
       if (result.success) {
         final currentUser = _authRepository.currentUser;
         if (currentUser != null) {
-          final profileExists = await _authRepository.userProfileExists(currentUser.uid);
+          final profileExists =
+              await _authRepository.userProfileExists(currentUser.uid);
 
           if (profileExists) {
             await _loadUserProfile(currentUser.uid);
@@ -205,7 +214,8 @@ class AuthViewModel extends StateNotifier<AuthState> {
       }
 
       String errorMessage = result.message ?? 'Verification failed';
-      if (errorMessage.contains('invalid') || errorMessage.contains('expired')) {
+      if (errorMessage.contains('invalid') ||
+          errorMessage.contains('expired')) {
         errorMessage = 'Invalid or expired OTP code. Please try again.';
       }
 
@@ -314,11 +324,11 @@ class AuthViewModel extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> deleteAccount() async {
+  Future<bool> deleteAccount({String? feedback}) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final result = await _authRepository.deleteUserAccount();
+      final result = await _authRepository.deleteAccount(feedback: feedback);
 
       if (result.success) {
         state = AuthState();
@@ -326,14 +336,14 @@ class AuthViewModel extends StateNotifier<AuthState> {
       } else {
         state = state.copyWith(
           isLoading: false,
-          error: result.message ?? 'Failed to delete account',
+          error: result.message,
         );
         return false;
       }
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: 'Account deletion error: ${e.toString()}',
+        error: 'Delete account error: ${e.toString()}',
       );
       return false;
     }
@@ -357,9 +367,9 @@ class AuthViewModel extends StateNotifier<AuthState> {
     state = state.copyWith(error: null);
   }
 
-  Future<bool> retryAfterDelay(String phoneNumber, {int delayMinutes = 60}) async {
+  Future<bool> retryAfterDelay(String phoneNumber,
+      {int delayMinutes = 60}) async {
     await Future.delayed(Duration(minutes: delayMinutes));
     return await sendOTP(phoneNumber);
   }
 }
-

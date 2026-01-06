@@ -6,6 +6,8 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:smart_chaja/authentication/register/model/auth_result.dart';
 import 'package:smart_chaja/authentication/register/model/user_model.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -229,6 +231,45 @@ class FirebaseAuthService {
     }
   }
 
+  // Send deletion feedback email using Firebase Cloud Functions
+  Future<void> _sendDeletionFeedbackEmail({
+    required String userEmail,
+    required String phoneNumber,
+    required String feedback,
+    required String userId,
+  }) async {
+    try {
+      // Get the Firebase Cloud Function URL
+      // You'll need to deploy a Cloud Function that sends emails
+      final functionUrl =
+          'https://us-central1-smartchaja.cloudfunctions.net/sendDeletionFeedback';
+
+      final response = await http.post(
+        Uri.parse(functionUrl),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'userId': userId,
+          'userEmail': userEmail,
+          'phoneNumber': phoneNumber,
+          'feedback': feedback,
+          'timestamp': DateTime.now().toIso8601String(),
+          'recipientEmail': 'thomas.ryoba@tewl.co.tz',
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('✅ Deletion feedback email sent successfully');
+      } else {
+        debugPrint('⚠️ Failed to send feedback email: ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error sending feedback email: $e');
+      // Don't throw error - deletion should succeed even if email fails
+    }
+  }
+
   // Sign out
   Future<AuthResult> signOut() async {
     try {
@@ -335,6 +376,53 @@ class FirebaseAuthService {
       debugPrint('✅ Deletion attempted for all extensions');
     } catch (e) {
       debugPrint('ℹ️ No profile picture to delete or error: $e');
+    }
+  }
+
+  // Delete user account - removes from Firebase Auth and Firestore
+  Future<AuthResult> deleteAccount({
+    String? feedback,
+  }) async {
+    try {
+      final uid = currentUser?.uid;
+      final userEmail = currentUser?.email;
+      final phoneNumber = currentUser?.phoneNumber;
+
+      if (uid == null) {
+        return AuthResult.failure('No authenticated user found');
+      }
+
+      // Step 1: Save feedback to Firestore before deletion
+      if (feedback != null && feedback.isNotEmpty) {
+        await _firestore.collection('deleted_user_feedback').doc(uid).set({
+          'userId': uid,
+          'userEmail': userEmail,
+          'phoneNumber': phoneNumber,
+          'feedback': feedback,
+          'deletedAt': DateTime.now(),
+        });
+
+        // Step 2: Send email notification with feedback
+        await _sendDeletionFeedbackEmail(
+          userEmail: userEmail ?? 'Unknown',
+          phoneNumber: phoneNumber ?? 'Unknown',
+          feedback: feedback,
+          userId: uid,
+        );
+      }
+
+      // Step 3: Delete user's profile picture from Firebase Storage
+      await _deleteProfilePicture(uid);
+
+      // Step 4: Delete user document from Firestore
+      await _firestore.collection('users').doc(uid).delete();
+
+      // Step 5: Delete user from Firebase Authentication
+      await currentUser?.delete();
+
+      return AuthResult.success(message: 'Account deleted successfully');
+    } catch (e) {
+      return AuthResult.failure(e.toString());
     }
   }
 }

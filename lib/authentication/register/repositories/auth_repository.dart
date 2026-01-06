@@ -1,5 +1,3 @@
-
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,7 +20,8 @@ class AuthRepository {
     required Function(String) onCodeSent,
     required Function(String) onVerificationFailed,
     TextEditingController? pinController, // Add pin controller parameter
-    required Function() onAutoVerificationCompleted, // Add auto verification callback
+    required Function()
+        onAutoVerificationCompleted, // Add auto verification callback
   }) {
     return _authService.sendOTP(
       phoneNumber: phoneNumber,
@@ -99,12 +98,17 @@ class AuthRepository {
     return _authService.signOut();
   }
 
+  Future<AuthResult> deleteAccount({String? feedback}) {
+    return _authService.deleteAccount(feedback: feedback);
+  }
+
   Future<AuthResult> reauthenticate({
     required String phoneNumber,
     required Function(String) onCodeSent,
     required Function(String) onVerificationFailed,
     TextEditingController? pinController, // Add pin controller parameter
-    required Function() onAutoVerificationCompleted, // Add auto verification callback
+    required Function()
+        onAutoVerificationCompleted, // Add auto verification callback
   }) {
     return _authService.reauthenticate(
       phoneNumber: phoneNumber,
@@ -125,4 +129,3 @@ class AuthRepository {
     );
   }
 }
-

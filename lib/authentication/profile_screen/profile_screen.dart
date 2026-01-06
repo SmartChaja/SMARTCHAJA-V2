@@ -382,6 +382,15 @@ class ProfileScreen extends ConsumerWidget {
                         title: 'Sign Out',
                         onTap: () => _showSignOutDialog(context, ref),
                         textColor: AppColors.errorColor,
+                        isLast: false,
+                        primaryColor: primaryColor,
+                      ),
+                      _buildSettingsItem(
+                        context,
+                        icon: Icons.delete_forever_rounded,
+                        title: 'Delete Account',
+                        onTap: () => _showDeleteAccountDialog(context, ref),
+                        textColor: AppColors.errorColor,
                         isLast: true,
                         primaryColor: primaryColor,
                       ),
@@ -951,6 +960,149 @@ class ProfileScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text('Delete Account'),
+        content: const Text(
+          'This will permanently delete your account and all associated data. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _showDeleteConfirmationDialog(context, ref);
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.errorColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Delete Account'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteConfirmationDialog(BuildContext context, WidgetRef ref) {
+    final confirmController = TextEditingController();
+    final feedbackController = TextEditingController();
+    ValueNotifier<bool> isDeleteEnabled = ValueNotifier(false);
+
+    confirmController.addListener(() {
+      isDeleteEnabled.value = confirmController.text == 'Delete';
+    });
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text('Confirm Account Deletion'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Type "Delete" to confirm:'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmController,
+                decoration: InputDecoration(
+                  hintText: 'Type "Delete"',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text('Why are you deleting your account? (Optional)'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: feedbackController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'Your feedback helps us improve...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ),
+          ValueListenableBuilder<bool>(
+            valueListenable: isDeleteEnabled,
+            builder: (context, isEnabled, _) => FilledButton(
+              onPressed: isEnabled
+                  ? () async {
+                      Navigator.of(dialogContext).pop();
+                      // Show loading
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Deleting account...')),
+                      );
+
+                      final success = await ref
+                          .read(authViewModelProvider.notifier)
+                          .deleteAccount(feedback: feedbackController.text);
+
+                      if (success) {
+                        // Navigate to login screen
+                        if (!context.mounted) return;
+                        Navigator.pushReplacementNamed(context, '/send-otp');
+                      } else {
+                        // Show error
+                        if (!context.mounted) return;
+                        final error = ref.read(authViewModelProvider).error;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(
+                                  'Error: ${error ?? 'Failed to delete account'}')),
+                        );
+                      }
+                    }
+                  : null,
+              style: FilledButton.styleFrom(
+                backgroundColor:
+                    isEnabled ? AppColors.errorColor : Colors.grey[400],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Delete Permanently'),
+            ),
           ),
         ],
       ),
