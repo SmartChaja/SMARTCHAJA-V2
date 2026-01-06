@@ -1,0 +1,24 @@
+my callback url
+cmd
+firebase deploy --only functions:azampayCallbackUrl
+firebase deploy --only functions:checkOverdueRentals
+......................................................................................................................................................................
+https://azampaycallbackurl-45f4gu65ha-uc.a.run.app
+
+......................................................................................................................................................................
+my scheduler url
+
+......................................................................................................................................................................
+
+......................................................................................................................................................................
+other url for my projetc 
+
+......................................................................................................................................................................
+https://console.cloud.google.com/appengine/cronjobs?inv=1&invt=Ab5iNA&project=deductive-water-462117-d3
+https://console.cloud.google.com/security/secret-manager?inv=1&invt=Ab5ikA&project=chaja-kiganjani
+https://console.cloud.google.com/run?authuser=0&inv=1&invt=Ab5i6A&project=chaja-kiganjani
+https://console.cloud.google.com/errors?authuser=0&project=chaja-kiganjani&inv=1&invt=Ab5iew
+https://console.cloud.google.com/storage/browser?inv=1&invt=Ab5iNA&project=deductive-water-462117-d3&prefix=&forceOnBucketsSortingFiltering=true&bucketType=live&pli=1
+https://console.cloud.google.com/logs/query;query=%2528resource.type%3D%22cloud_function%22%20%20%2529%20OR%20%2528resource.type%3D%22cloud_run_revision%22%20%20%2529;cursorTimestamp=2025-08-15T12:49:46.557580260Z;duration=PT1H?authuser=0&project=chaja-kiganjani&inv=1&invt=Ab5i6A
+
+......................................................................................................................................................................

@@ -1,0 +1,589 @@
+import 'dart:developer';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:smart_chaja/app_constants/app_constants.dart';
+import 'package:smart_chaja/app_constants/charge_now_api_config.dart';
+import 'package:smart_chaja/features/chargenow_devices/create_rent_order/provider/create_rent_order_provider.dart';
+import 'package:smart_chaja/features/chargenow_devices/create_rent_order/view/order_feedback_dialog.dart';
+import 'package:smart_chaja/features/chargenow_devices/create_rent_order/view/widgets/qr_code_scanner_shape.dart';
+import 'package:smart_chaja/features/chargenow_devices/create_rent_order/view_model/create_rent_order_view_model.dart';
+import 'package:smart_chaja/features/chargenow_devices/plan/model/plan_state.dart';
+import 'package:smart_chaja/features/chargenow_devices/plan/provider/plan_provider.dart';
+import 'package:smart_chaja/reusable_widgets/custom_text_field.dart';
+import 'package:smart_chaja/reusable_widgets/snack_bar.dart';
+import 'package:smart_chaja/features/chargenow_devices/plan/model/plan.dart';
+import 'package:smart_chaja/authentication/register/viewmodels/auth_viewmodel.dart';
+import 'package:smart_chaja/features/wallet/provider/wallet_providers.dart';
+
+
+class CreateRentOrderScreen extends ConsumerStatefulWidget {
+  final String? initialDeviceId;
+
+  const CreateRentOrderScreen({super.key, this.initialDeviceId});
+
+  @override
+  ConsumerState<CreateRentOrderScreen> createState() => _CreateRentOrderScreenState();
+}
+
+class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen> with WidgetsBindingObserver {
+  final _formKey = GlobalKey<FormState>();
+  final _deviceIdController = TextEditingController();
+  final _callbackURLController = TextEditingController();
+
+  final MobileScannerController _scannerController = MobileScannerController(
+    autoStart: false,
+    detectionSpeed: DetectionSpeed.noDuplicates,
+  );
+
+  bool _showScanner = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
+    if (widget.initialDeviceId != null) {
+      _deviceIdController.text = widget.initialDeviceId!;
+      _showScanner = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _proceedToPlanSelection(_deviceIdController.text.trim());
+      });
+    } else {
+      _scannerController.start();
+    }
+
+    _callbackURLController.text = ChargeNowApiConfig.rentOrderCallbackUrl;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_showScanner) return;
+
+    if (!(_scannerController.value.isInitialized) || !(_scannerController.value.hasCameraPermission)) {
+      return;
+    }
+
+    switch (state) {
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        _scannerController.stop();
+        break;
+      case AppLifecycleState.resumed:
+        _scannerController.start();
+        break;
+      case AppLifecycleState.inactive:
+        _scannerController.stop();
+        break;
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _scannerController.dispose();
+    _deviceIdController.dispose();
+    _callbackURLController.dispose();
+    super.dispose();
+  }
+
+  void _toggleViewMode() async {
+    const transitionDelay = Duration(milliseconds: 100);
+
+    if (_showScanner) {
+      await _scannerController.stop();
+      await Future.delayed(transitionDelay);
+      if (mounted) {
+        setState(() {
+          _showScanner = false;
+        });
+      }
+    } else {
+      setState(() {
+        _showScanner = true;
+      });
+      await Future.delayed(transitionDelay);
+      if (mounted) {
+        await _scannerController.start();
+      }
+    }
+  }
+
+  void _onDetect(BarcodeCapture capture) async {
+    final List<Barcode> barcodes = capture.barcodes;
+    if (barcodes.isNotEmpty) {
+      final String? code = barcodes.first.rawValue;
+      if (code != null && code.trim().isNotEmpty) {
+        _scannerController.stop(); // Stop scanner immediately
+
+        final String confirmedDeviceId = code.trim();
+        _deviceIdController.text = confirmedDeviceId;
+        
+        log('Detected Device ID: $confirmedDeviceId, proceeding to plan selection...');
+        
+        if (!mounted) return;
+        await _proceedToPlanSelection(confirmedDeviceId);
+      }
+    }
+  }
+
+  Future<void> _proceedToPlanSelection(String deviceId) async {
+    final authState = ref.read(authViewModelProvider);
+    final currentUser = authState.user;
+
+    if (currentUser == null) {
+      TopSnackBar.show(
+        context,
+        "User not authenticated. Please log in to rent a device.",
+        iconData: Icons.person_off_rounded,
+        color: AppColors.errorColor,
+      );
+      if (_showScanner && mounted) {
+        _scannerController.start();
+      }
+      return;
+    }
+
+    final planViewModel = ref.read(planViewModelProvider.notifier);
+    await planViewModel.fetchPlans();
+
+    if (!mounted) return;
+
+    final Plan? selectedPlan = await showDialog<Plan>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return _buildPlanSelectionDialog(deviceId);
+      },
+    );
+
+    if (!mounted) return;
+
+    if (selectedPlan != null) {
+      log('User selected plan: ${selectedPlan.name} for device: $deviceId');
+      await _deductBalanceAndCreateOrder(deviceId, selectedPlan);
+    } else {
+      log('User canceled plan selection.');
+      if (_showScanner && mounted) {
+        _scannerController.start();
+      }
+    }
+  }
+
+  Widget _buildPlanSelectionDialog(String deviceId) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final planState = ref.watch(planViewModelProvider);
+        final authState = ref.watch(authViewModelProvider);
+        final currentUser = authState.user;
+
+        if (currentUser == null) {
+          return AlertDialog(
+            title: const Text("Authentication Error"),
+            content: const Text("User not authenticated. Please log in."),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(null),
+                child: const Text("OK"),
+              ),
+            ],
+          );
+        }
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppBorderRadius.large),
+          ),
+          title: const Text('Choose a Rent Plan'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your current balance: ${currentUser.balance.toStringAsFixed(2)} ${AppConstants.defaultCurrency}',
+                  style: AppTextStyles.bodyText1.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryColor,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.medium),
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.medium),
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundColorDark.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppBorderRadius.medium),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.devices_rounded, color: AppColors.primaryColor),
+                      const SizedBox(width: AppSpacing.small),
+                      Expanded(
+                        child: Text(
+                          'Device: $deviceId',
+                          style: AppTextStyles.bodyText1.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.medium),
+
+                if (planState.status == PlanStatus.loading)
+                  const Center(child: CircularProgressIndicator()),
+                if (planState.status == PlanStatus.error)
+                  Center(
+                    child: Text('Failed to load plans: ${planState.errorMsg}',
+                        style: AppTextStyles.bodyText2.copyWith(color: AppColors.errorColor)),
+                  ),
+                if (planState.status == PlanStatus.success && (planState.plans == null || planState.plans!.isEmpty))
+                  const Center(child: Text('No rent plans available.')),
+
+                if (planState.status == PlanStatus.success && planState.plans != null)
+                  ...planState.plans!.map((plan) {
+                    final isSelected = plan == planState.selectedPlan;
+                    return RadioListTile<Plan>(
+                      title: Text('${plan.name} (${plan.durationDays} Days)'),
+                      subtitle: Text('${plan.price.toStringAsFixed(2)} ${plan.currency}'),
+                      value: plan,
+                      groupValue: planState.selectedPlan,
+                      onChanged: (Plan? value) {
+                        ref.read(planViewModelProvider.notifier).selectPlan(value);
+                      },
+                      activeColor: AppColors.primaryColor,
+                      tileColor: isSelected ? AppColors.primaryColor.withOpacity(0.1) : null,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppBorderRadius.medium),
+                        side: BorderSide(
+                          color: isSelected ? AppColors.primaryColor : Colors.transparent,
+                          width: isSelected ? 2.0 : 0.0,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+
+                if (planState.selectedPlan != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.medium),
+                    child: Text(
+                      'Cost for selected plan: ${planState.selectedPlan!.price.toStringAsFixed(2)} ${planState.selectedPlan!.currency}',
+                      style: AppTextStyles.bodyText1.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                if (planState.selectedPlan != null && currentUser.balance < planState.selectedPlan!.price)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.small),
+                    child: Text(
+                      'Insufficient balance! Please top up your wallet.',
+                      style: AppTextStyles.bodyText2.copyWith(color: AppColors.errorColor),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(null);
+                ref.read(planViewModelProvider.notifier).selectPlan(null);
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Proceed to Rent'),
+              onPressed: (planState.selectedPlan != null && currentUser.balance >= planState.selectedPlan!.price)
+                  ? () {
+                      Navigator.of(context).pop(planState.selectedPlan);
+                      ref.read(planViewModelProvider.notifier).selectPlan(null);
+                    }
+                  : null,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _deductBalanceAndCreateOrder(String deviceId, Plan selectedPlan) async {
+    final authState = ref.read(authViewModelProvider);
+    final currentUser = authState.user;
+    final walletService = ref.read(walletServiceProvider);
+
+    if (currentUser == null) {
+      TopSnackBar.show(
+        context,
+        "User not authenticated. Please log in.",
+        iconData: Icons.person_off_rounded,
+        color: AppColors.errorColor,
+      );
+      if (_showScanner && mounted) {
+        _scannerController.start();
+      }
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: AppSpacing.medium),
+              Text("Processing payment..."),
+            ],
+          ),
+        );
+      },
+    );
+
+    try {
+      final success = await walletService.deductBalance(
+        userId: currentUser.uid,
+        amount: selectedPlan.price,
+        currency: selectedPlan.currency,
+        description: 'Power bank rent: ${selectedPlan.name}',
+        deviceId: deviceId,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      if (success) {
+        await ref.read(authViewModelProvider.notifier).refreshUserProfile();
+
+        TopSnackBar.show(
+          context,
+          "Payment successful! ${selectedPlan.price.toStringAsFixed(2)} ${selectedPlan.currency} deducted.",
+          iconData: Icons.check_circle_rounded,
+          color: AppColors.successColor,
+        );
+
+        _submitAndShowFeedback(selectedPlan);
+      } else {
+        TopSnackBar.show(
+          context,
+          "Failed to deduct payment. Please try again.",
+          iconData: Icons.error,
+          color: AppColors.errorColor,
+        );
+        if (_showScanner && mounted) {
+          _scannerController.start();
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      String errorMessage = "Error deducting payment.";
+      if (e.toString().contains("Insufficient balance")) {
+        errorMessage = "Insufficient balance. Please top up your wallet.";
+      } else if (e.toString().contains("User profile not found")) {
+        errorMessage = "User data not found. Please re-login.";
+      } else {
+        log('Error during balance deduction: ${e.toString()}');
+      }
+
+      TopSnackBar.show(
+        context,
+        errorMessage,
+        iconData: Icons.error,
+        color: AppColors.errorColor,
+      );
+      if (_showScanner && mounted) {
+        _scannerController.start();
+      }
+    }
+  }
+
+  void _submitAndShowFeedback(Plan selectedPlan) {
+    final notifier = ref.read(createRentOrderViewModelProvider.notifier);
+    notifier.resetState();
+
+    notifier.submitCreateRentOrder(
+      deviceId: _deviceIdController.text.trim(),
+      callbackURL: _callbackURLController.text.trim(),
+      selectedPlan: selectedPlan,
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const OrderFeedbackDialog(),
+    ).then((_) {
+      if (_showScanner && mounted) {
+        _scannerController.start();
+      }
+    });
+  }
+
+  void _handleSubmit() async {
+    FocusScope.of(context).unfocus();
+
+    if (!_formKey.currentState!.validate()) {
+      TopSnackBar.show(
+        context,
+        "Please fill all required fields correctly.",
+        iconData: Icons.warning_amber_rounded,
+        color: AppColors.warningColor,
+      );
+      return;
+    }
+    final String deviceId = _deviceIdController.text.trim();
+    await _proceedToPlanSelection(deviceId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(createRentOrderViewModelProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_showScanner ? 'Scan Device QR Code' : 'Initiate Device Rent'),
+        backgroundColor: AppColors.primaryColor,
+        foregroundColor: Colors.white,
+        actions: [
+          if (state.opStatus != CreateRentOrderStatus.loading)
+            IconButton(
+              onPressed: _toggleViewMode,
+              icon: Icon(_showScanner ? Icons.keyboard_rounded : Icons.qr_code_scanner_rounded),
+              tooltip: _showScanner ? 'Enter ID Manually' : 'Scan QR Code',
+            )
+        ],
+      ),
+      backgroundColor: _showScanner ? Colors.black : AppColors.backgroundColor,
+      body: _showScanner ? _buildScannerView() : _buildManualInputForm(),
+    );
+  }
+
+  Widget _buildScannerView() {
+    return Stack(
+      children: [
+        MobileScanner(
+          controller: _scannerController,
+          onDetect: _onDetect,
+        ),
+        Container(
+          decoration: const ShapeDecoration(
+            shape: QrScannerOverlayShape(
+              borderColor: AppColors.primaryColor,
+              borderRadius: 12,
+              borderLength: 30,
+              borderWidth: 8,
+              cutOutSize: 300,
+            ),
+          ),
+        ),
+        Positioned(
+          top: 16,
+          right: 16,
+          child: Column(
+            children: [
+              IconButton(
+                color: Colors.white,
+                icon: ValueListenableBuilder<MobileScannerState>(
+                  valueListenable: _scannerController,
+                  builder: (context, state, child) {
+                    switch (state.torchState) {
+                      case TorchState.on:
+                        return const Icon(Icons.flash_on, color: Colors.yellow);
+                      case TorchState.off:
+                        return const Icon(Icons.flash_off, color: Colors.white);
+                      default:
+                        return const Icon(Icons.no_flash, color: Colors.grey);
+                    }
+                  },
+                ),
+                tooltip: 'Toggle Flash',
+                onPressed: () => _scannerController.toggleTorch(),
+              ),
+              const SizedBox(height: 16),
+              IconButton(
+                color: Colors.white,
+                icon: const Icon(Icons.flip_camera_ios),
+                onPressed: () => _scannerController.switchCamera(),
+                tooltip: 'Switch Camera',
+              ),
+            ],
+          ),
+        ),
+        const Positioned(
+          bottom: 100,
+          left: 0,
+          right: 0,
+          child: Text(
+            "Position the QR code inside the frame",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white, fontSize: 16, backgroundColor: Colors.black54),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildManualInputForm() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.large),
+      child: Form(
+        key: _formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            const Icon(
+              Icons.power_settings_new_rounded,
+              size: 70,
+              color: AppColors.primaryColor,
+            ),
+            const SizedBox(height: AppSpacing.medium),
+            Text(
+              "Manually enter the Device ID/SN to start a rent session.",
+              style: AppTextStyles.bodyText1.copyWith(color: AppColors.secondaryTextColor),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            EnhancedCustomTextField(
+              controller: _deviceIdController,
+              label: 'Device ID / SN*',
+              hintText: 'e.g., BJD60151',
+              prefixIcon: Icons.devices_rounded,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Device ID is required.';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: AppSpacing.medium),
+            EnhancedCustomTextField(
+              controller: _callbackURLController,
+              label: 'Callback URL (Auto-filled)',
+              prefixIcon: Icons.http_rounded,
+              readOnly: true,
+              enabled: false,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.send_to_mobile_rounded),
+              label: const Text('Create Rent Order'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.medium + AppSpacing.xs),
+                textStyle: AppTextStyles.button.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppBorderRadius.xl)),
+              ),
+              onPressed: _handleSubmit,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

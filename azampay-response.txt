@@ -1,0 +1,20 @@
+{
+  "message": "Transaction Completed",
+  "user": "MerchantUsername",
+  "password": "MerchantPassword",
+  "clientId": "CLIENT_ID",
+  "transactionstatus": "SUCCESS",  // or PENDING, FAILED
+  "operator": "Vodacom",           // could be Vodacom, Airtel, etc.
+  "reference": "TRX12345",         // your transaction ID
+  "externalreference": "EXT56789", // AzamPay's internal ref
+  "utilityref": "UTILITY_REF_001",
+  "amount": 5000,
+  "transid": "MPESA123456",
+  "msisdn": "255712345678",        // payer phone
+  "mnoreference": "MNO_REF_001",
+  "submerchantAcc": null,
+  "additionalProperties": {
+    "userId": "abc123",            // your custom data
+    "productId": "xyz456"
+  }
+}

@@ -1,0 +1,275 @@
+// File: lib/features/chargenow_devices/device_info/view/charge_now_device_detail_screen.dart
+import 'package:baije_charge_tz/app_constants/app_constants.dart';
+import 'package:baije_charge_tz/features/chargenow_devices/device_info/model/charge_now_device_info_response.dart';
+import 'package:baije_charge_tz/features/chargenow_devices/device_info/provider/charge_now_devices_provider.dart';
+import 'package:baije_charge_tz/features/chargenow_devices/device_info/view_model/charge_now_device_info_view_model.dart';
+import 'package:baije_charge_tz/reusable_widgets/snack_bar.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
+
+
+class ChargeNowDeviceDetailScreen extends ConsumerStatefulWidget {
+  final String deviceId; // e.g., "BJD60151"
+  final String? deviceNameToDisplay; // Optional, to show in AppBar while loading
+
+  const ChargeNowDeviceDetailScreen({
+    super.key,
+    required this.deviceId,
+    this.deviceNameToDisplay,
+  });
+
+  @override
+  ConsumerState<ChargeNowDeviceDetailScreen> createState() => _ChargeNowDeviceDetailScreenState();
+}
+
+class _ChargeNowDeviceDetailScreenState extends ConsumerState<ChargeNowDeviceDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // Fetch device info when the screen initializes
+        // The ViewModel handles not re-fetching if data is already present and not forceRefresh
+        ref.read(chargeNowDeviceInfoViewModelProvider(widget.deviceId).notifier).fetchDeviceInfo();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(chargeNowDeviceInfoViewModelProvider(widget.deviceId));
+    final notifier = ref.read(chargeNowDeviceInfoViewModelProvider(widget.deviceId).notifier);
+
+    // Listener for TopSnackBar messages for errors (success is handled by displaying data)
+    ref.listen<DeviceInfoState>(chargeNowDeviceInfoViewModelProvider(widget.deviceId), (prev, next) {
+      if ((next.status == DeviceInfoStatus.error || next.status == DeviceInfoStatus.notFound) &&
+          next.errorMsg != null &&
+          (prev?.errorMsg != next.errorMsg || prev?.status != next.status) // Only show if new/different error
+          ) {
+        if (mounted) {
+          TopSnackBar.show(
+            context,
+            next.errorMsg!,
+            iconData: next.status == DeviceInfoStatus.notFound ? Icons.search_off_rounded : Icons.error_outline_rounded,
+            color: next.status == DeviceInfoStatus.notFound ? AppColors.warningColor : AppColors.errorColor,
+          );
+        }
+      }
+    });
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(state.deviceInfo?.cabinet?.id ?? widget.deviceNameToDisplay ?? widget.deviceId),
+        backgroundColor: AppColors.primaryColor,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: "Refresh Device Info",
+            onPressed: () => notifier.fetchDeviceInfo(forceRefresh: true),
+          )
+        ],
+      ),
+      backgroundColor: AppColors.backgroundColor.withOpacity(0.97),
+      body: _buildContent(state, notifier),
+    );
+  }
+
+  Widget _buildContent(DeviceInfoState state, ChargeNowDeviceInfoViewModel notifier) {
+    switch (state.status) {
+      case DeviceInfoStatus.initial:
+      case DeviceInfoStatus.loading:
+        return const Center(child: CircularProgressIndicator(color: AppColors.primaryColor));
+      case DeviceInfoStatus.notFound:
+         return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.large),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.devices_other_sharp, size: 72, color: AppColors.secondaryTextColor),
+                const SizedBox(height: AppSpacing.medium),
+                Text(state.errorMsg ?? 'Device details not found.', style: AppTextStyles.headline3.copyWith(color: AppColors.secondaryTextColor), textAlign: TextAlign.center),
+                const SizedBox(height: AppSpacing.large),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                  onPressed: () => notifier.fetchDeviceInfo(forceRefresh: true),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryColor, foregroundColor: Colors.white),
+                )
+              ],
+            ),
+          ),
+        );
+      case DeviceInfoStatus.success:
+        if (state.deviceInfo == null) {
+          // This case should ideally be covered by DeviceInfoStatus.notFound or error if API behaves consistently
+          return Center(
+            child: Text(
+              "Device data is missing even after successful fetch. Please try refreshing.",
+               style: AppTextStyles.bodyText1.copyWith(color: AppColors.warningColor),
+               textAlign: TextAlign.center,
+            )
+          );
+        }
+        return RefreshIndicator(
+            onRefresh: () async => notifier.fetchDeviceInfo(forceRefresh: true),
+            color: AppColors.primaryColor,
+            child: _buildDeviceDetails(state.deviceInfo!),
+        );
+      case DeviceInfoStatus.error:
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.large),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline_rounded, size: 72, color: AppColors.errorColor),
+                const SizedBox(height: AppSpacing.medium),
+                Text(state.errorMsg ?? 'Failed to load device details.', style: AppTextStyles.headline3.copyWith(color: AppColors.errorColor), textAlign: TextAlign.center),
+                const SizedBox(height: AppSpacing.large),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                  onPressed: () => notifier.fetchDeviceInfo(forceRefresh: true),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.errorColor, foregroundColor: Colors.white),
+                )
+              ],
+            ),
+          ),
+        );
+    }
+  }
+
+  Widget _buildDeviceDetails(DeviceInfoData data) {
+    return ListView( // Using ListView for potentially long content
+      padding: const EdgeInsets.all(AppSpacing.medium),
+      children: [
+        if (data.cabinet != null) _buildCabinetDetails(data.cabinet!),
+        if (data.shop != null) _buildShopDetails(data.shop!),
+        if (data.priceStrategy != null) _buildPriceStrategyDetails(data.priceStrategy!),
+        if (data.batteries.isNotEmpty) _buildBatteriesDetails(data.batteries),
+        if(data.cabinet == null && data.shop == null && data.priceStrategy == null && data.batteries.isEmpty)
+            const Padding(
+                padding: EdgeInsets.all(AppSpacing.large),
+                child: Text("No detailed information available for this device.", style: AppTextStyles.bodyText1, textAlign: TextAlign.center),
+            )
+      ],
+    );
+  }
+
+  Widget _buildSectionCard(String title, List<Widget> children, {IconData? sectionIcon}) {
+    if (children.isEmpty) return const SizedBox.shrink(); // Don't show card if no details for section
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.medium),
+      elevation: 2.5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppBorderRadius.medium)),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.medium),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                if (sectionIcon != null) Icon(sectionIcon, color: AppColors.primaryDarkColor, size: 22),
+                if (sectionIcon != null) const SizedBox(width: AppSpacing.small),
+                Text(title, style: AppTextStyles.headline3.copyWith(color: AppColors.primaryDarkColor, fontSize: 18)),
+              ],
+            ),
+            const Divider(height: AppSpacing.medium, thickness: 0.5),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCabinetDetails(CabinetInfo cabinet) {
+    return _buildSectionCard("Cabinet Details", [
+      _buildDetailRow("Device ID:", cabinet.id ?? "N/A"),
+      _buildDetailRow("Type:", cabinet.type ?? "N/A"),
+      _buildDetailRow("Online:", cabinet.online == true ? "Yes" : "No", valueColor: cabinet.online == true ? AppColors.successColor : AppColors.errorColor),
+      _buildDetailRow("Total Slots:", cabinet.slots?.toString() ?? "N/A"),
+      _buildDetailRow("Empty Slots:", cabinet.emptySlots?.toString() ?? "N/A"),
+      _buildDetailRow("Busy Slots:", cabinet.busySlots?.toString() ?? "N/A"),
+      if(cabinet.ip != null && cabinet.ip!.isNotEmpty) _buildDetailRow("IP Address:", cabinet.ip!),
+      if(cabinet.signal != null && cabinet.signal!.isNotEmpty) _buildDetailRow("Signal:", cabinet.signal!),
+      if(cabinet.qrCode != null && cabinet.qrCode!.isNotEmpty) _buildDetailRow("QR Code:", cabinet.qrCode!),
+      if(cabinet.remark != null && cabinet.remark!.isNotEmpty) _buildDetailRow("Remark:", cabinet.remark!, maxLines: 2),
+      if(cabinet.posDeviceId != null && cabinet.posDeviceId!.isNotEmpty) _buildDetailRow("POS ID:", cabinet.posDeviceId!),
+    ], sectionIcon: Icons.power_settings_new_rounded);
+  }
+
+  Widget _buildShopDetails(ShopInfo shop) {
+     return _buildSectionCard("Shop Details", [
+      _buildDetailRow("Shop Name:", shop.name ?? "N/A"),
+      _buildDetailRow("Shop ID:", shop.id ?? "N/A"),
+      if(shop.logo != null && shop.logo!.isNotEmpty)
+        Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.small),
+            child: Center(child: CachedNetworkImage(imageUrl: shop.logo!, height: 60, errorWidget: (c,u,e) => const Icon(Icons.storefront_outlined))),
+        ),
+      _buildDetailRow("Address:", shop.address ?? "N/A", maxLines: 3),
+      _buildDetailRow("City:", shop.city ?? "N/A"),
+      _buildDetailRow("Province:", shop.province ?? "N/A"),
+      _buildDetailRow("Region:", shop.region ?? "N/A"),
+      _buildDetailRow("Opening Hours:", shop.openingTime ?? "N/A"),
+      if(shop.content != null && shop.content!.isNotEmpty) _buildDetailRow("Description:", shop.content!, maxLines: 3),
+      _buildDetailRow("Coords:", "Lat: ${shop.latitude ?? 'N/A'}, Lng: ${shop.longitude ?? 'N/A'}"),
+    ], sectionIcon: Icons.store_mall_directory_outlined);
+  }
+
+  Widget _buildPriceStrategyDetails(PriceStrategyInfo strategy) {
+     return _buildSectionCard("Pricing: ${strategy.name ?? 'Default Strategy'}", [
+      _buildDetailRow("Rate:", "${strategy.price ?? 0} ${strategy.currencySymbol ?? strategy.currency ?? ''} / ${strategy.priceMinute ?? 0} min"),
+      _buildDetailRow("Free Time:", "${strategy.freeMinutes ?? 0} minutes"),
+      _buildDetailRow("Daily Cap:", "${strategy.dailyMaxPrice ?? 0} ${strategy.currencySymbol ?? strategy.currency ?? ''}"),
+      _buildDetailRow("Deposit:", "${strategy.depositAmount ?? 0} ${strategy.currencySymbol ?? strategy.currency ?? ''}"),
+      _buildDetailRow("Auto Refund:", strategy.autoRefund == 1 ? "Yes" : "No"),
+      _buildDetailRow("Overdue Charge:", "${strategy.timeoutAmount ?? 0} ${strategy.currencySymbol ?? strategy.currency ?? ''} after ${strategy.timeoutDay ?? 0} days"),
+    ], sectionIcon: Icons.price_change_outlined);
+  }
+
+   Widget _buildBatteriesDetails(List<BatteryInfo> batteries) {
+    return _buildSectionCard("Batteries Available (${batteries.length})", batteries.map((battery) => Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.small / 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Battery ID: ${battery.batteryId ?? "N/A"}", style: AppTextStyles.bodyText1.copyWith(fontWeight: FontWeight.w500)),
+          _buildDetailRow("  Slot:", battery.slotNum?.toString() ?? "N/A", isSubItem: true),
+          _buildDetailRow("  Voltage:", "${battery.vol?.toString() ?? "N/A"}%", isSubItem: true), // Assuming 'vol' is percentage
+          if (batteries.indexOf(battery) < batteries.length -1) const Divider(height: AppSpacing.small, thickness: 0.3),
+        ],
+      ),
+    )).toList(), sectionIcon: Icons.battery_charging_full_rounded);
+  }
+
+  Widget _buildDetailRow(String label, String value, {Color? valueColor, int maxLines = 1, bool isSubItem = false}) {
+    return Padding(
+      padding: EdgeInsets.only(
+          left: isSubItem ? AppSpacing.medium : 0,
+          top: AppSpacing.xs / (isSubItem ? 1 : 1.5), // Less padding for sub-items
+          bottom: AppSpacing.xs / (isSubItem ? 1 : 1.5)),
+      child: Row(
+        crossAxisAlignment: maxLines > 1 ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        children: [
+          Text(label, style: isSubItem ? AppTextStyles.caption.copyWith(color: AppColors.secondaryTextColor) : AppTextStyles.bodyText2.copyWith(color: AppColors.secondaryTextColor, fontWeight: FontWeight.w500)),
+          const SizedBox(width: AppSpacing.small),
+          Expanded(
+            child: Text(
+              value.isNotEmpty ? value : "-",
+              style: isSubItem ? AppTextStyles.caption.copyWith(color: valueColor ?? AppColors.primaryTextColor) : AppTextStyles.bodyText1.copyWith(color: valueColor ?? AppColors.primaryTextColor, fontWeight: FontWeight.w500),
+              textAlign: TextAlign.end,
+              maxLines: maxLines,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
