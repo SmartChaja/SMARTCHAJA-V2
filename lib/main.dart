@@ -61,7 +61,9 @@ Future<void> main() async {
     // Configure Firebase Auth settings
     await _configureFirebaseAuth();
 
-    // Activate Firebase App Check
+    // ⚠️ TEMPORARILY DISABLED FOR EMULATOR TESTING
+    // App Check is commented out to allow testing on emulators without Firebase blocking
+    // MUST UNCOMMENT AND RE-ENABLE THIS BEFORE UPLOADING TO PLAY STORE!
     await _activateAppCheck();
 
     // Initialize localization
@@ -112,9 +114,25 @@ Future<void> _configureFirebaseAuth() async {
   }
 }
 
+// ⚠️ APP CHECK FUNCTION - COMMENTED OUT FOR EMULATOR TESTING
+// This function is disabled to allow testing on Android emulators
+// Firebase was blocking all requests from emulator devices
+//
+// BEFORE PUBLISHING TO PLAY STORE:
+// 1. UNCOMMENT the await _activateAppCheck(); line in main()
+// 2. UNCOMMENT this entire function
+// 3. Ensure androidProvider is set to AndroidProvider.playIntegrity (production)
+// 4. Test thoroughly on a real device
+//
 Future<void> _activateAppCheck() async {
   try {
     if (kDebugMode) {
+      // ⚠️ DEBUG MODE ONLY - Disables strict device verification
+      // This allows testing on emulators without Firebase blocking requests
+      //
+      // IMPORTANT: REMOVE THIS kDebugMode CHECK BEFORE PUBLISHING TO PLAY STORE!
+      // In production, App Check must use playIntegrity for Android
+      // Otherwise, you won't catch real device issues
       await FirebaseAppCheck.instance.activate(
         androidProvider: AndroidProvider.debug,
         appleProvider: AppleProvider.debug,
@@ -122,8 +140,12 @@ Future<void> _activateAppCheck() async {
       );
       // Temporarily disabled to avoid rate limiting during testing
       // final token = await FirebaseAppCheck.instance.getToken();
-      debugPrint('✅ Firebase App Check activated (Debug mode)');
+      debugPrint(
+          '✅ Firebase App Check activated (Debug mode - DEVICE CHECK DISABLED)');
+      debugPrint(
+          '⚠️ Remember: Remove kDebugMode check before Play Store release!');
     } else {
+      // Production build - Enable strict device verification
       await FirebaseAppCheck.instance.activate(
         androidProvider: AndroidProvider.playIntegrity,
         appleProvider: AppleProvider.appAttestWithDeviceCheckFallback,
@@ -131,7 +153,8 @@ Future<void> _activateAppCheck() async {
           dotenv.env['RECAPTCHA_V3_SITE_KEY'] ?? 'your-recaptcha-v3-site-key',
         ),
       );
-      debugPrint('✅ Firebase App Check activated (Production mode)');
+      debugPrint(
+          '✅ Firebase App Check activated (Production mode - STRICT VERIFICATION ENABLED)');
     }
   } catch (error) {
     debugPrint('❌ Error activating Firebase App Check: $error');

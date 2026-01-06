@@ -172,8 +172,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               ),
                               WidgetSpan(
                                 child: GestureDetector(
-                                  onTap: () =>
-                                      _launchURL('https://www.tewl.co.tz/terms-conditions/'),
+                                  onTap: () => _launchURL(
+                                      'https://www.tewl.co.tz/terms-conditions/'),
                                   child: Text(
                                     'Privacy Policy',
                                     style: TextStyle(
