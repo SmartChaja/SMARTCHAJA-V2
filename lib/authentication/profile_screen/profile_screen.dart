@@ -1074,18 +1074,68 @@ class ProfileScreen extends ConsumerWidget {
                         const SnackBar(content: Text('Deleting account...')),
                       );
 
+                      debugPrint('🔴 DELETING ACCOUNT: Started deletion process...');
                       final success = await ref
                           .read(authViewModelProvider.notifier)
                           .deleteAccount(feedback: feedbackController.text);
+                      debugPrint('🔴 DELETING ACCOUNT: Success=$success');
 
                       if (success) {
-                        // Navigate to login screen
+                        debugPrint('✅ DELETION SUCCESSFUL: Showing success dialog');
+                        // Show success dialog
                         if (!context.mounted) return;
-                        Navigator.pushReplacementNamed(context, '/send-otp');
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (dialogContext) => AlertDialog(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            icon: const Icon(
+                              Icons.check_circle,
+                              color: Colors.green,
+                              size: 56,
+                            ),
+                            title: const Text(
+                              'Account Deleted',
+                              textAlign: TextAlign.center,
+                            ),
+                            content: const Text(
+                              'Your account has been successfully deleted.',
+                              textAlign: TextAlign.center,
+                            ),
+                            actions: [
+                              FilledButton(
+                                onPressed: () {
+                                  debugPrint('🔴 NAVIGATION: Clicking Continue button');
+                                  Navigator.of(dialogContext).pop();
+                                  debugPrint('🔴 NAVIGATION: Dialog closed, navigating to /welcome');
+                                  Future.delayed(const Duration(milliseconds: 100), () {
+                                    Navigator.pushNamedAndRemoveUntil(
+                                      context,
+                                      '/welcome',
+                                      (route) => false,
+                                    );
+                                    debugPrint('✅ NAVIGATION: Navigated to /welcome');
+                                  });
+                                },
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: const Text('Continue'),
+                              ),
+                            ],
+                          ),
+                        );
                       } else {
                         // Show error
+                        debugPrint('❌ DELETION FAILED: Showing error message');
                         if (!context.mounted) return;
                         final error = ref.read(authViewModelProvider).error;
+                        debugPrint('❌ ERROR MESSAGE: $error');
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                               content: Text(
