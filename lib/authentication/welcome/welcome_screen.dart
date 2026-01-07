@@ -105,7 +105,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              const SizedBox(height: 45),
+                              const SizedBox(height: 40),
                               // Lottie logo from splash screen (static, green, smaller)
                               _lottieController != null
                                   ? ColorFiltered(
