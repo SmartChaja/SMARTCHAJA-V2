@@ -132,7 +132,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             ],
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 24),
                         // Title below logo (left-aligned to match body text)
                         const Text(
                           'Welcome to SmartChaja',
@@ -145,7 +145,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           ),
                           textAlign: TextAlign.left,
                         ),
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 36),
                         // Service Description
                         Text(
                           'A simple, secure, and convenient way to rent power banks whenever your phone battery runs low. Find nearby SmartChaja stations, rent instantly, and stay connected wherever you go.',
@@ -156,12 +156,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             height: 1.6,
                           ),
                         ),
-                        const SizedBox(height: 36),
+                        const SizedBox(height: 32),
                         // Privacy Policy Information - improved presentation
                         RichText(
                           text: TextSpan(
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 15,
                               fontWeight: FontWeight.normal,
                               color: AppColors.primaryTextColor,
                               height: 1.6,
@@ -178,11 +178,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   child: Text(
                                     'Privacy Policy',
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 15,
                                       color: AppColors.primaryColor,
                                       decoration: TextDecoration.underline,
                                       decorationThickness: 1.5,
-                                      fontWeight: FontWeight.w500,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
@@ -197,11 +197,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   child: Text(
                                     'Learn more',
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 15,
                                       color: AppColors.primaryColor,
                                       decoration: TextDecoration.underline,
                                       decorationThickness: 1.5,
-                                      fontWeight: FontWeight.w500,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
@@ -212,12 +212,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             ],
                           ),
                         ),
-                        const SizedBox(height: 36),
+                        const SizedBox(height: 28),
                         // Terms of Service Acceptance - improved presentation
                         RichText(
                           text: TextSpan(
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 15,
                               fontWeight: FontWeight.normal,
                               color: AppColors.primaryTextColor,
                               height: 1.6,
@@ -234,11 +234,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   child: Text(
                                     'Terms of Service',
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 15,
                                       color: AppColors.primaryColor,
                                       decoration: TextDecoration.underline,
                                       decorationThickness: 1.5,
-                                      fontWeight: FontWeight.w500,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
@@ -297,28 +297,28 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryColor.withOpacity(0.3),
+            color: AppColors.primaryColor.withOpacity(0.18),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: ElevatedButton(
-        onPressed: () => _onAgreeAndContinue(context),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        child: const Text(
-          'Agree & Continue',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.3,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _onAgreeAndContinue(context),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            alignment: Alignment.center,
+            child: const Text(
+              'Agree & Continue',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+              ),
+            ),
           ),
         ),
       ),
