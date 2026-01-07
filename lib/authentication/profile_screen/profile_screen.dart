@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_chaja/app_constants/app_constants.dart';
@@ -9,17 +10,41 @@ import 'package:smart_chaja/localization/language_selector.dart';
 import 'package:intl/intl.dart';
 import 'dart:ui';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  bool _isNavigatingAfterDeletion = false;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final authState = ref.watch(authViewModelProvider);
     final user = authState.user;
     final isAdmin = user?.role == 'admin';
     final isDark = theme.brightness == Brightness.dark;
     const primaryColor = Color(0xFF10B981); // Emerald green
+
+    // Listen for auth state changes - if user becomes unauthenticated after deletion, navigate immediately
+    // This listener only triggers when the value changes, not on every build
+    ref.listen<bool>(authViewModelProvider.select((state) => state.isAuthenticated), (previous, next) {
+      if (previous == true && next == false && !_isNavigatingAfterDeletion && mounted) {
+        // User just became unauthenticated (likely after deletion) - navigate to welcome immediately
+        _isNavigatingAfterDeletion = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil(
+              '/welcome',
+              (route) => false,
+            );
+          }
+        });
+      }
+    });
 
     if (authState.isLoading) {
       return Scaffold(
@@ -67,7 +92,17 @@ class ProfileScreen extends ConsumerWidget {
       );
     }
 
+    // If not authenticated and we're not navigating, show sign in screen
+    // But if we're navigating after deletion, show loading to prevent flicker
     if (!authState.isAuthenticated || user == null) {
+      if (_isNavigatingAfterDeletion) {
+        // Show loading while navigating to prevent showing "sign in" screen
+        return Scaffold(
+          backgroundColor:
+              isDark ? AppColors.backgroundColorDark : AppColors.backgroundColor,
+          body: const Center(child: CircularProgressIndicator()),
+        );
+      }
       return Scaffold(
         backgroundColor:
             isDark ? AppColors.backgroundColorDark : AppColors.backgroundColor,
@@ -1068,11 +1103,15 @@ class ProfileScreen extends ConsumerWidget {
             builder: (context, isEnabled, _) => FilledButton(
               onPressed: isEnabled
                   ? () async {
+                      // Close the dialog first
                       Navigator.of(dialogContext).pop();
+                      
                       // Show loading
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Deleting account...')),
-                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Deleting account...')),
+                        );
+                      }
 
                       debugPrint('🔴 DELETING ACCOUNT: Started deletion process...');
                       final success = await ref
@@ -1081,55 +1120,23 @@ class ProfileScreen extends ConsumerWidget {
                       debugPrint('🔴 DELETING ACCOUNT: Success=$success');
 
                       if (success) {
-                        debugPrint('✅ DELETION SUCCESSFUL: Showing success dialog');
-                        // Show success dialog
+                        debugPrint('✅ DELETION SUCCESSFUL: Navigating to welcome screen');
                         if (!context.mounted) return;
-                        showDialog(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (dialogContext) => AlertDialog(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            icon: const Icon(
-                              Icons.check_circle,
-                              color: Colors.green,
-                              size: 56,
-                            ),
-                            title: const Text(
-                              'Account Deleted',
-                              textAlign: TextAlign.center,
-                            ),
-                            content: const Text(
-                              'Your account has been successfully deleted.',
-                              textAlign: TextAlign.center,
-                            ),
-                            actions: [
-                              FilledButton(
-                                onPressed: () {
-                                  debugPrint('🔴 NAVIGATION: Clicking Continue button');
-                                  Navigator.of(dialogContext).pop();
-                                  debugPrint('🔴 NAVIGATION: Dialog closed, navigating to /welcome');
-                                  Future.delayed(const Duration(milliseconds: 100), () {
-                                    Navigator.pushNamedAndRemoveUntil(
-                                      context,
-                                      '/welcome',
-                                      (route) => false,
-                                    );
-                                    debugPrint('✅ NAVIGATION: Navigated to /welcome');
-                                  });
-                                },
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: const Text('Continue'),
-                              ),
-                            ],
-                          ),
+                        
+                        // Set flag to prevent showing "sign in" screen during navigation
+                        if (mounted) {
+                          setState(() {
+                            _isNavigatingAfterDeletion = true;
+                          });
+                        }
+                        
+                        // Navigate immediately to welcome screen using root navigator
+                        final navigator = Navigator.of(context, rootNavigator: true);
+                        navigator.pushNamedAndRemoveUntil(
+                          '/welcome',
+                          (route) => false,
                         );
+                        debugPrint('✅ NAVIGATION: Navigated to /welcome');
                       } else {
                         // Show error
                         debugPrint('❌ DELETION FAILED: Showing error message');

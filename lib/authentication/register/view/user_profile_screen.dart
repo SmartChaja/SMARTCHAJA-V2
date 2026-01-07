@@ -128,8 +128,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       final authViewModel = ref.read(authViewModelProvider.notifier);
       final success = await authViewModel.deleteAccount();
       if (success) {
-        TopSnackBar.show(context, 'Account deleted successfully!', iconData: Icons.check_circle, color: Colors.green);
-        Navigator.pushReplacementNamed(context, '/send-otp');
+        // Navigate to welcome screen after successful account deletion
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/welcome',
+          (route) => false,
+        );
       } else {
         TopSnackBar.show(context, ref.read(authViewModelProvider).error ?? 'Failed to delete account', iconData: Icons.error, color: Colors.red);
       }
