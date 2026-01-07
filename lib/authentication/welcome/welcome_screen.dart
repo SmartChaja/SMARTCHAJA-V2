@@ -105,7 +105,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              const SizedBox(height: 60),
+                              const SizedBox(height: 45),
                               // Lottie logo from splash screen (static, green, smaller)
                               _lottieController != null
                                   ? ColorFiltered(
@@ -129,21 +129,21 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                         child: CircularProgressIndicator(),
                                       ),
                                     ),
-                              const SizedBox(height: 16),
-                              // Title below logo (centered)
-                              const Text(
-                                'Welcome to SmartChaja',
-                                style: TextStyle(
-                                  color: AppColors.primaryTextColor,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                  height: 1.2,
-                                  letterSpacing: -0.5,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
                             ],
                           ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Title below logo (left-aligned to match body text)
+                        const Text(
+                          'Welcome to SmartChaja',
+                          style: TextStyle(
+                            color: AppColors.primaryTextColor,
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            height: 1.2,
+                            letterSpacing: -0.5,
+                          ),
+                          textAlign: TextAlign.left,
                         ),
                         const SizedBox(height: 40),
                         // Service Description
