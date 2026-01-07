@@ -105,6 +105,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
+                              const SizedBox(height: 60),
                               // Lottie logo from splash screen (static, green, smaller)
                               _lottieController != null
                                   ? ColorFiltered(
@@ -114,16 +115,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                       ),
                                       child: Lottie.asset(
                                         'assets/lottie/power.json',
-                                        width: 100,
-                                        height: 100,
+                                        width: 70,
+                                        height: 70,
                                         fit: BoxFit.contain,
                                         repeat: false,
                                         frameRate: FrameRate.max,
                                       ),
                                     )
                                   : const SizedBox(
-                                      width: 100,
-                                      height: 100,
+                                      width: 70,
+                                      height: 70,
                                       child: Center(
                                         child: CircularProgressIndicator(),
                                       ),
@@ -131,7 +132,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               const SizedBox(height: 16),
                               // Title below logo (centered)
                               const Text(
-                                'Welcome to\nSmartChaja',
+                                'Welcome to SmartChaja',
                                 style: TextStyle(
                                   color: AppColors.primaryTextColor,
                                   fontSize: 32,
