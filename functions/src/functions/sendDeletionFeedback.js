@@ -44,10 +44,26 @@ exports.sendDeletionFeedback = functions.https.onRequest(async (req, res) => {
       return res.status(400).send("Missing required fields");
     }
 
+    // Get user's full name from Firestore
+    let userFullName = "Unknown";
+    try {
+      const userDoc = await admin
+        .firestore()
+        .collection("users")
+        .doc(userId)
+        .get();
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        userFullName = userData.fullName || userData.name || "Unknown";
+      }
+    } catch (e) {
+      console.log("Could not fetch user full name:", e.message);
+    }
+
     // Create email content
     const emailContent = `
         <h2>Account Deletion Feedback</h2>
-        <p><strong>User ID:</strong> ${userId}</p>
+        <p><strong>User Full Name:</strong> ${userFullName}</p>
         <p><strong>User Email:</strong> ${userEmail}</p>
         <p><strong>Phone Number:</strong> ${phoneNumber}</p>
         <p><strong>Deletion Time:</strong> ${timestamp}</p>
