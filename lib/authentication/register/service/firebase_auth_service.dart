@@ -239,10 +239,9 @@ class FirebaseAuthService {
     required String userId,
   }) async {
     try {
-      // Get the Firebase Cloud Function URL
-      // You'll need to deploy a Cloud Function that sends emails
+      // Firebase Cloud Function Gen 2 URL
       final functionUrl =
-          'https://us-central1-smartchaja.cloudfunctions.net/sendDeletionFeedback';
+          'https://senddeletionfeedback-45f4gu65ha-uc.a.run.app';
 
       final response = await http.post(
         Uri.parse(functionUrl),
@@ -255,7 +254,7 @@ class FirebaseAuthService {
           'phoneNumber': phoneNumber,
           'feedback': feedback,
           'timestamp': DateTime.now().toIso8601String(),
-          'recipientEmail': 'thomas.ryoba@tewl.co.tz',
+          'recipientEmail': 'ryoba2014@gmail.com',
         }),
       );
 
