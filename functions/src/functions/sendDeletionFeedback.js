@@ -2,15 +2,22 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
 
-// Create a Nodemailer transporter using Gmail
-// You'll need to set environment variables for email credentials
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER || "your-email@gmail.com",
-    pass: process.env.EMAIL_PASSWORD || "your-app-password",
-  },
-});
+// Get email credentials
+const getTransporter = () => {
+  // Gmail app password WITH spaces (as displayed in Gmail settings)
+  const emailUser = "smartchaja@gmail.com";
+  const emailPass = "jfeq rkbu tpky idiy";
+
+  console.log("📧 Using email:", emailUser);
+
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: emailUser,
+      pass: emailPass,
+    },
+  });
+};
 
 /**
  * Cloud Function to send deletion feedback email
@@ -50,8 +57,9 @@ exports.sendDeletionFeedback = functions.https.onRequest(async (req, res) => {
       `;
 
     // Send email
+    const transporter = getTransporter();
     await transporter.sendMail({
-      from: process.env.EMAIL_USER || "your-email@gmail.com",
+      from: "SmartChaja <smartchaja@gmail.com>",
       to: recipientEmail,
       subject: `Account Deletion Feedback - User ${userId}`,
       html: emailContent,
