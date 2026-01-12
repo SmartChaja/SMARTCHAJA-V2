@@ -61,7 +61,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   void _onAgreeAndContinue(BuildContext context) {
-    Navigator.of(context).pushReplacementNamed('/send-otp');
+    Navigator.of(context).pushReplacementNamed('/map');
+  }
+
+  void _onViewMapAsGuest(BuildContext context) {
+    Navigator.of(context).pushReplacementNamed('/map');
   }
 
   Future<void> _launchURL(String url) async {
@@ -138,7 +142,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           'Welcome to SmartChaja',
                           style: TextStyle(
                             color: AppColors.primaryTextColor,
-                            fontSize: 32,
+                            fontSize: 28,
                             fontWeight: FontWeight.bold,
                             height: 1.2,
                             letterSpacing: -0.5,
