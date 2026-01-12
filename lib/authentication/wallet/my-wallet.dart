@@ -32,40 +32,125 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
   @override
   Widget build(BuildContext context) {
     final user = _auth.currentUser;
-    if (user == null) return _AuthRequiredView();
 
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
       body: SafeArea(
-        child: StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .snapshots(),
-          builder: (context, snap) {
-            final balance =
-                (snap.data?.data() as Map<String, dynamic>?)?['balance']
-                        ?.toDouble() ??
-                    0.0;
-            return Column(
+        child: user == null
+            ? _GuestWalletView()
+            : StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user.uid)
+                    .snapshots(),
+                builder: (context, snap) {
+                  final balance =
+                      (snap.data?.data() as Map<String, dynamic>?)?['balance']
+                              ?.toDouble() ??
+                          0.0;
+                  return Column(
+                    children: [
+                      _Header(balance: balance),
+                      _QuickActions(),
+                      _TabSection(controller: _tabController, tabs: _tabs),
+                      Expanded(
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: _tabs
+                              .map((t) =>
+                                  _TransactionList(userId: user.uid, filter: t))
+                              .toList(),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+      ),
+    );
+  }
+}
+
+class _GuestWalletView extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _Header(balance: 0.0),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D9488).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFF0D9488).withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
               children: [
-                _Header(balance: balance),
-                _QuickActions(),
-                _TabSection(controller: _tabController, tabs: _tabs),
+                const Icon(Icons.info_outline,
+                    size: 20, color: Color(0xFF0D9488)),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: _tabs
-                        .map((t) =>
-                            _TransactionList(userId: user.uid, filter: t))
-                        .toList(),
+                  child: Text(
+                    'Sign in to view your transaction history and manage your wallet',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: const Color(0xFF0D9488).withOpacity(0.8),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
-            );
-          },
+            ),
+          ),
         ),
-      ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: ElevatedButton(
+            onPressed: () => Navigator.pushNamed(context, '/send-otp'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF059669),
+              minimumSize: const Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Sign In',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Expanded(
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.receipt_long_outlined,
+                    size: 48, color: Colors.grey[300]),
+                const SizedBox(height: 16),
+                const Text('No transactions',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF374151))),
+                const SizedBox(height: 4),
+                Text('Your activity will appear here after you sign in',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[500])),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

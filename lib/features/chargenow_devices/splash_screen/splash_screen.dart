@@ -32,30 +32,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Future<void> _checkAuth() async {
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
-    final authRepository = ref.read(authRepositoryProvider);
-    final currentUser = authRepository.currentUser;
-    if (currentUser != null) {
-      try {
-        final profileExists =
-            await authRepository.userProfileExists(currentUser.uid);
-        if (!mounted) return;
-        if (profileExists) {
-          debugPrint('✅ User authenticated with profile → Navigating to Home');
-          _navigateTo('/map');
-        } else {
-          debugPrint(
-              '⚠️ User authenticated but no profile → Navigating to Register');
-          _navigateTo('/register');
-        }
-      } catch (e) {
-        debugPrint('❌ Error checking profile existence: $e');
-        if (!mounted) return;
-        _navigateTo('/register');
-      }
-    } else {
-      debugPrint('❌ User not authenticated → Navigating to Welcome');
-      _navigateTo('/welcome');
-    }
+    debugPrint('🚀 Navigating to Welcome Screen');
+    _navigateTo('/welcome');
   }
 
   void _navigateTo(String route) {
