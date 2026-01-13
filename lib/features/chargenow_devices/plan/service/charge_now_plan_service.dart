@@ -16,10 +16,6 @@ class ChargeNowPlanService {
   UserModel? get _currentUser => _ref.read(authViewModelProvider).user;
 
   Future<List<Plan>> getPlans() async {
-    if (_currentUser == null) {
-      throw ChargeNowApiException(message: "User not authenticated.");
-    }
-
     try {
       print("ChargeNowPlanService: Fetching plans from global collection");
       final snapshot = await _firestore.collection('plans').get();
