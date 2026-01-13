@@ -138,14 +138,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
-                          Icons.card_giftcard,
+                          Icons.person_outline_rounded,
                           size: 28,
                           color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Explore Our Plans',
+                        'Your Profile',
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
@@ -154,7 +154,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Choose the perfect plan for you',
+                        'Join SmartChaja to manage rentals & track your account',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: Colors.white.withOpacity(0.9),
                           fontWeight: FontWeight.w500,
@@ -173,13 +173,73 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Plans list - compact
-                    _buildPaymentPlansList(context, theme, primaryColor, ref),
-                    const SizedBox(height: 16),
-                    
-                    // Benefits section - compact and full width
+                    // Profile Features Section
                     Container(
-                      width: MediaQuery.of(context).size.width,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Create Your Account',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildProfileFeatureItem(
+                            context,
+                            theme,
+                            Icons.electric_bolt_rounded,
+                            'Rent Power Banks',
+                            'Access premium rental plans instantly',
+                            primaryColor,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildProfileFeatureItem(
+                            context,
+                            theme,
+                            Icons.wallet_rounded,
+                            'Manage Wallet',
+                            'Track balance, transactions & refunds',
+                            primaryColor,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildProfileFeatureItem(
+                            context,
+                            theme,
+                            Icons.history_rounded,
+                            'View History',
+                            'Check all your rental & transaction history',
+                            primaryColor,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildProfileFeatureItem(
+                            context,
+                            theme,
+                            Icons.verified_rounded,
+                            'Secure Account',
+                            'Your data is protected with enterprise security',
+                            primaryColor,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Rental Plans Preview
+                    Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: primaryColor.withOpacity(0.08),
@@ -193,7 +253,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Why Choose SmartChaja?',
+                            'Available Rental Plans',
                             style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
                               color: primaryColor,
@@ -201,28 +261,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          _buildCompactBenefitRow(
-                            context,
-                            theme,
-                            Icons.check_circle_outline,
-                            'Instant Activation',
-                            primaryColor,
-                          ),
-                          const SizedBox(height: 8),
-                          _buildCompactBenefitRow(
-                            context,
-                            theme,
-                            Icons.shield_outlined,
-                            'Secure & Safe',
-                            primaryColor,
-                          ),
-                          const SizedBox(height: 8),
-                          _buildCompactBenefitRow(
-                            context,
-                            theme,
-                            Icons.headset_mic_outlined,
-                            '24/7 Support',
-                            primaryColor,
+                          Text(
+                            'Browse our flexible rental plans designed for your needs',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.black54,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
@@ -233,39 +277,117 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             
-            // Fixed CTA Button at bottom - full width
+            // Fixed CTA Buttons at bottom - full width
             Container(
               width: MediaQuery.of(context).size.width,
               padding: const EdgeInsets.all(16),
               child: SafeArea(
                 top: false,
-                child: FilledButton(
-                  onPressed: () =>
-                      Navigator.pushReplacementNamed(context, '/send-otp'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.arrow_forward_rounded, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Sign In for More Details',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Rent Plan Button
+                    FilledButton(
+                      onPressed: () {
+                        // Show rental plans in a modal or navigate to plans page
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                          ),
+                          builder: (context) => DraggableScrollableSheet(
+                            expand: false,
+                            initialChildSize: 0.9,
+                            maxChildSize: 0.95,
+                            builder: (context, scrollController) => SingleChildScrollView(
+                              controller: scrollController,
+                              child: Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          'Our Rental Plans',
+                                          style: theme.textTheme.titleLarge?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        IconButton(
+                                          onPressed: () => Navigator.pop(context),
+                                          icon: const Icon(Icons.close_rounded),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildPaymentPlansList(context, theme, primaryColor, ref),
+                                    const SizedBox(height: 24),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: primaryColor,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                    ],
-                  ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.card_giftcard, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'View Rental Plans',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Sign In Button
+                    OutlinedButton(
+                      onPressed: () =>
+                          Navigator.pushReplacementNamed(context, '/send-otp'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 14,
+                        ),
+                        side: BorderSide(color: primaryColor, width: 2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.arrow_forward_rounded, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Sign In for Full Access',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: primaryColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1377,6 +1499,52 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               color: Colors.black87,
               fontSize: 13,
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfileFeatureItem(
+    BuildContext context,
+    ThemeData theme,
+    IconData icon,
+    String title,
+    String subtitle,
+    Color color,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 20, color: color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.black54,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ),
       ],
