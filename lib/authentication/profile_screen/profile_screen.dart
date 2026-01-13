@@ -8,6 +8,8 @@ import 'package:smart_chaja/authentication/register/viewmodels/auth_viewmodel.da
 import 'package:smart_chaja/localization/app_locale.dart';
 import 'package:smart_chaja/localization/language_selector.dart';
 import 'package:intl/intl.dart';
+import 'package:smart_chaja/features/chargenow_devices/plan/provider/plan_provider.dart';
+import 'package:smart_chaja/features/chargenow_devices/plan/model/plan_state.dart';
 import 'dart:ui';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -92,7 +94,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
     }
 
-    // If not authenticated and we're not navigating, show sign in screen
+    // If not authenticated and we're not navigating, show payment plans and sign in
     // But if we're navigating after deletion, show loading to prevent flicker
     if (!authState.isAuthenticated || user == null) {
       if (_isNavigatingAfterDeletion) {
@@ -106,30 +108,168 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return Scaffold(
         backgroundColor:
             isDark ? AppColors.backgroundColorDark : AppColors.backgroundColor,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.person_outline, size: 48, color: primaryColor),
-              const SizedBox(height: 16),
-              Text(
-                'Please sign in to view your profile',
-                style: theme.textTheme.titleLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () =>
-                    Navigator.pushReplacementNamed(context, '/login'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
+        body: Column(
+          children: [
+            // Header section with gradient - full width
+            Container(
+              width: MediaQuery.of(context).size.width,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    primaryColor.withOpacity(0.95),
+                    primaryColor.withOpacity(0.8),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                child: const Text('Sign In'),
               ),
-            ],
-          ),
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.card_giftcard,
+                          size: 28,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Explore Our Plans',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          fontSize: 24,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Choose the perfect plan for you',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withOpacity(0.9),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            
+            // Scrollable content - full width
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Plans list - compact
+                    _buildPaymentPlansList(context, theme, primaryColor, ref),
+                    const SizedBox(height: 16),
+                    
+                    // Benefits section - compact and full width
+                    Container(
+                      width: MediaQuery.of(context).size.width,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: primaryColor.withOpacity(0.2),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Why Choose SmartChaja?',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: primaryColor,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildCompactBenefitRow(
+                            context,
+                            theme,
+                            Icons.check_circle_outline,
+                            'Instant Activation',
+                            primaryColor,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildCompactBenefitRow(
+                            context,
+                            theme,
+                            Icons.shield_outlined,
+                            'Secure & Safe',
+                            primaryColor,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildCompactBenefitRow(
+                            context,
+                            theme,
+                            Icons.headset_mic_outlined,
+                            '24/7 Support',
+                            primaryColor,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Fixed CTA Button at bottom - full width
+            Container(
+              width: MediaQuery.of(context).size.width,
+              padding: const EdgeInsets.all(16),
+              child: SafeArea(
+                top: false,
+                child: FilledButton(
+                  onPressed: () =>
+                      Navigator.pushReplacementNamed(context, '/send-otp'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.arrow_forward_rounded, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Sign In for More Details',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -1163,6 +1303,417 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBenefitRow(
+    BuildContext context,
+    ThemeData theme,
+    IconData icon,
+    String title,
+    String subtitle,
+    Color color,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 20, color: color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompactBenefitRow(
+    BuildContext context,
+    ThemeData theme,
+    IconData icon,
+    String title,
+    Color color,
+  ) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(icon, size: 16, color: color),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentPlansList(
+    BuildContext context,
+    ThemeData theme,
+    Color primaryColor,
+    WidgetRef ref,
+  ) {
+    final planState = ref.watch(planViewModelProvider);
+
+    // Only fetch plans if not already loaded or loading
+    if (planState.status != PlanStatus.loading &&
+        planState.status != PlanStatus.success &&
+        planState.status != PlanStatus.error) {
+      Future.microtask(
+        () => ref.read(planViewModelProvider.notifier).fetchPlans(),
+      );
+    }
+
+    if (planState.status == PlanStatus.loading) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: primaryColor),
+              const SizedBox(height: 16),
+              Text(
+                'Loading available plans...',
+                style: theme.textTheme.bodyMedium,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (planState.status == PlanStatus.error) {
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red[200]!, width: 1.5),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.error_outline, size: 48, color: Colors.red[400]),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Unable to Load Plans',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.red[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Please check your connection and try again',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.red[600],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: () {
+                      ref.read(planViewModelProvider.notifier).fetchPlans();
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Try Again'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (planState.plans == null || planState.plans!.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          children: [
+            Icon(Icons.info_outline, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 12),
+            Text(
+              'No Plans Available',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: planState.plans!.length,
+      itemBuilder: (context, index) {
+        final plan = planState.plans![index];
+        final isFirstPlan = index == 0;
+        final isPopular = index == 1; // Mark second plan as popular
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Stack(
+            children: [
+              // Main card
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    colors: isPopular
+                        ? [primaryColor.withOpacity(0.95), primaryColor.withOpacity(0.85)]
+                        : [Colors.white, Colors.grey[50]!],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isPopular
+                          ? primaryColor.withOpacity(0.3)
+                          : Colors.black.withOpacity(0.08),
+                      blurRadius: isPopular ? 16 : 12,
+                      offset: Offset(0, isPopular ? 8 : 4),
+                    ),
+                  ],
+                  border: Border.all(
+                    color: isPopular
+                        ? primaryColor.withOpacity(0.4)
+                        : Colors.grey[200]!,
+                    width: 1.5,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  plan.name,
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: isPopular ? Colors.white : Colors.black87,
+                                    fontSize: 20,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.schedule_rounded,
+                                      size: 16,
+                                      color: isPopular
+                                          ? Colors.white.withOpacity(0.8)
+                                          : Colors.grey[600],
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '${plan.durationDays} day${plan.durationDays > 1 ? 's' : ''} duration',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: isPopular
+                                            ? Colors.white.withOpacity(0.9)
+                                            : Colors.grey[600],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          // Price badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isPopular
+                                  ? Colors.white.withOpacity(0.2)
+                                  : primaryColor.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isPopular
+                                    ? Colors.white.withOpacity(0.3)
+                                    : primaryColor.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '${plan.price.toStringAsFixed(0)}',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: isPopular ? Colors.white : primaryColor,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                Text(
+                                  plan.currency,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: isPopular
+                                        ? Colors.white.withOpacity(0.8)
+                                        : Colors.grey[600],
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Divider
+                      Container(
+                        height: 1,
+                        color: isPopular
+                            ? Colors.white.withOpacity(0.2)
+                            : Colors.grey[200],
+                      ),
+                      const SizedBox(height: 16),
+                      // Features row
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isPopular
+                                  ? Colors.white.withOpacity(0.1)
+                                  : primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.flash_on,
+                              size: 16,
+                              color:
+                                  isPopular ? Colors.white : primaryColor,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Instant activation & 24/7 support',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: isPopular
+                                    ? Colors.white.withOpacity(0.9)
+                                    : Colors.grey[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Popular badge
+              if (isPopular)
+                Positioned(
+                  top: 0,
+                  right: 20,
+                  child: Transform.translate(
+                    offset: const Offset(0, -8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.amber[400],
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.amber[400]!.withOpacity(0.4),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.star_rounded,
+                            size: 14,
+                            color: Colors.amber[900],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Most Popular',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: Colors.amber[900],
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
