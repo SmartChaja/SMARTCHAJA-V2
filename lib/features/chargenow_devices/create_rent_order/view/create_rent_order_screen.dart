@@ -48,7 +48,17 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
+    // Check authentication - redirect to OTP if not logged in
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authState = ref.read(authViewModelProvider);
+      if (!authState.isAuthenticated || authState.user == null) {
+        // User not registered/authenticated, redirect to OTP registration
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/send-otp');
+        }
+        return;
+      }
+
       ref.read(authViewModelProvider.notifier).refreshUserProfile();
     });
 
