@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lottie/lottie.dart';
 import 'package:smart_chaja/app_constants/app_constants.dart';
 import 'package:smart_chaja/authentication/register/repositories/auth_repository.dart';
+import 'package:smart_chaja/features/chargenow_devices/plan/provider/plan_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -31,6 +32,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   Future<void> _checkAuth() async {
     await Future.delayed(const Duration(milliseconds: 500));
+    
+    // Fetch plans for non-logged-in users to display immediately on profile page
+    if (mounted) {
+      try {
+        debugPrint('📱 Fetching plans at splash screen...');
+        await ref.read(planViewModelProvider.notifier).fetchPlans();
+        debugPrint('✅ Plans fetched successfully at splash');
+      } catch (e) {
+        debugPrint('⚠️ Error fetching plans at splash: $e');
+      }
+    }
+    
     if (!mounted) return;
     debugPrint('🚀 Navigating to Welcome Screen');
     _navigateTo('/welcome');
