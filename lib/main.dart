@@ -126,25 +126,25 @@ Future<void> _configureFirebaseAuth() async {
 //
 Future<void> _activateAppCheck() async {
   try {
-    if (kDebugMode) {
-      // ⚠️ DEBUG MODE ONLY - Disables strict device verification
-      // This allows testing on emulators without Firebase blocking requests
-      //
-      // IMPORTANT: REMOVE THIS kDebugMode CHECK BEFORE PUBLISHING TO PLAY STORE!
-      // In production, App Check must use playIntegrity for Android
-      // Otherwise, you won't catch real device issues
-      await FirebaseAppCheck.instance.activate(
-        androidProvider: AndroidProvider.debug,
-        appleProvider: AppleProvider.debug,
-        webProvider: ReCaptchaV3Provider('debug-token'),
-      );
-      // Temporarily disabled to avoid rate limiting during testing
-      // final token = await FirebaseAppCheck.instance.getToken();
-      debugPrint(
-          '✅ Firebase App Check activated (Debug mode - DEVICE CHECK DISABLED)');
-      debugPrint(
-          '⚠️ Remember: Remove kDebugMode check before Play Store release!');
-    } else {
+    // if (kDebugMode) {
+    //   // ⚠️ DEBUG MODE ONLY - Disables strict device verification
+    //   // This allows testing on emulators without Firebase blocking requests
+    //   //
+    //   // IMPORTANT: REMOVE THIS kDebugMode CHECK BEFORE PUBLISHING TO PLAY STORE!
+    //   // In production, App Check must use playIntegrity for Android
+    //   // Otherwise, you won't catch real device issues
+    //   await FirebaseAppCheck.instance.activate(
+    //     androidProvider: AndroidProvider.debug,
+    //     appleProvider: AppleProvider.debug,
+    //     webProvider: ReCaptchaV3Provider('debug-token'),
+    //   );
+    //   // Temporarily disabled to avoid rate limiting during testing
+    //   // final token = await FirebaseAppCheck.instance.getToken();
+    //   debugPrint(
+    //       '✅ Firebase App Check activated (Debug mode - DEVICE CHECK DISABLED)');
+    //   debugPrint(
+    //       '⚠️ Remember: Remove kDebugMode check before Play Store release!');
+    // } else {
       // Production build - Enable strict device verification
       await FirebaseAppCheck.instance.activate(
         androidProvider: AndroidProvider.playIntegrity,
@@ -153,9 +153,9 @@ Future<void> _activateAppCheck() async {
           dotenv.env['RECAPTCHA_V3_SITE_KEY'] ?? 'your-recaptcha-v3-site-key',
         ),
       );
-      debugPrint(
-          '✅ Firebase App Check activated (Production mode - STRICT VERIFICATION ENABLED)');
-    }
+    //   debugPrint(
+    //       '✅ Firebase App Check activated (Production mode - STRICT VERIFICATION ENABLED)');
+    // }
   } catch (error) {
     debugPrint('❌ Error activating Firebase App Check: $error');
   }
