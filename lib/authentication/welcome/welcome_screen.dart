@@ -137,7 +137,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           ),
                         ),
                         const SizedBox(height: 24),
-                        // Title below logo (left-aligned to match body text)
+                        // Title below logo (centered)
                         const Text(
                           'Welcome to SmartChaja',
                           style: TextStyle(
@@ -147,7 +147,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             height: 1.2,
                             letterSpacing: -0.5,
                           ),
-                          textAlign: TextAlign.left,
+                          textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 36),
                         // Service Description
