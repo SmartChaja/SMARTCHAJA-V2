@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:smart_chaja/features/chargenow_devices/close_rent_order/service/charge_now_close_service.dart';
 import 'package:smart_chaja/features/chargenow_devices/close_rent_order/view_models/close_rent_order_state.dart';
 import 'package:smart_chaja/features/chargenow_devices/close_rent_order/view_models/close_rent_order_view_model.dart';
+import 'package:smart_chaja/features/chargenow_devices/create_rent_order/service/rented_power_bank_service.dart';
 
 // Reuse the same HTTP client provider as in CreateRentOrder
 final chargeNowCloseHttpClientProvider = Provider<http.Client>((ref) {
@@ -19,6 +20,7 @@ final chargeNowCloseServiceProvider = Provider<ChargeNowCloseService>((ref) {
 // StateNotifierProvider for the CloseRentOrderViewModel
 final closeRentOrderViewModelProvider =
     StateNotifierProvider<CloseRentOrderViewModel, CloseRentOrderState>((ref) {
-  final service = ref.read(chargeNowCloseServiceProvider);
-  return CloseRentOrderViewModel(service);
+  final closeService = ref.read(chargeNowCloseServiceProvider);
+  final rentedPowerBankService = ref.read(rentedPowerBankServiceProvider);
+  return CloseRentOrderViewModel(closeService, rentedPowerBankService);
 });

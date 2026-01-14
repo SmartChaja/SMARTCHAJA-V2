@@ -9,6 +9,7 @@ import 'package:smart_chaja/features/chargenow_devices/create_rent_order/service
 import 'package:smart_chaja/features/chargenow_devices/create_rent_order/service/rented_power_bank_service.dart';
 import 'package:smart_chaja/features/chargenow_devices/plan/model/plan.dart';
 import 'package:smart_chaja/authentication/register/repositories/auth_repository.dart';
+import 'package:smart_chaja/authentication/beemafrica_service.dart/beem_sms_service.dart';
 
 enum CreateRentOrderStatus { initial, loading, success, error }
 
@@ -33,10 +34,12 @@ class CreateRentOrderState {
     bool clearAll = false,
   }) {
     return CreateRentOrderState(
-      opStatus: clearAll ? CreateRentOrderStatus.initial : opStatus ?? this.opStatus,
+      opStatus:
+          clearAll ? CreateRentOrderStatus.initial : opStatus ?? this.opStatus,
       orderResponse: clearAll ? null : orderResponse ?? this.orderResponse,
       errorMsg: clearAll ? null : errorMsg ?? this.errorMsg,
-      validationDetails: clearAll ? null : validationDetails ?? this.validationDetails,
+      validationDetails:
+          clearAll ? null : validationDetails ?? this.validationDetails,
     );
   }
 }
@@ -77,8 +80,9 @@ class CreateRentOrderViewModel extends StateNotifier<CreateRentOrderState> {
       );
       return;
     }
-    
-    if (callbackURL.trim().isEmpty || Uri.tryParse(callbackURL.trim())?.isAbsolute != true) {
+
+    if (callbackURL.trim().isEmpty ||
+        Uri.tryParse(callbackURL.trim())?.isAbsolute != true) {
       state = state.copyWith(
         opStatus: CreateRentOrderStatus.error,
         errorMsg: "A valid Callback URL is required.",
@@ -87,7 +91,8 @@ class CreateRentOrderViewModel extends StateNotifier<CreateRentOrderState> {
     }
 
     try {
-      state = state.copyWith(opStatus: CreateRentOrderStatus.loading, clearAll: true);
+      state = state.copyWith(
+          opStatus: CreateRentOrderStatus.loading, clearAll: true);
 
       final params = CreateRentOrderParams(
         deviceId: deviceId.trim(),
@@ -100,7 +105,7 @@ class CreateRentOrderViewModel extends StateNotifier<CreateRentOrderState> {
       // Check if API call was successful
       if (result.code == 0 && result.data != null) {
         final String tradeNo = result.data!.tradeNo;
-        
+
         log('ChargeNow API call successful. TradeNo: $tradeNo');
         log('Saving rent record to Firestore for user: ${currentUser.uid}');
 
@@ -110,7 +115,8 @@ class CreateRentOrderViewModel extends StateNotifier<CreateRentOrderState> {
           log('ERROR: User became unauthenticated during order creation!');
           state = state.copyWith(
             opStatus: CreateRentOrderStatus.error,
-            errorMsg: "Authentication lost during order creation. Please try again.",
+            errorMsg:
+                "Authentication lost during order creation. Please try again.",
           );
           return;
         }
@@ -131,27 +137,56 @@ class CreateRentOrderViewModel extends StateNotifier<CreateRentOrderState> {
             tradeNo: tradeNo,
             selectedPlan: selectedPlan,
           );
-          
+
           log('✅ Rent order created successfully. TradeNo: $tradeNo');
-          
+
+          // Send SMS notification for successful power bank rental
+          try {
+            final smsService = BeemSmsService();
+            final phoneNumber = currentUser.phoneNumber ?? '';
+            final userName = currentUser.displayName ?? 'User';
+
+            if (phoneNumber.isNotEmpty) {
+              final smsSent = await smsService.sendPowerBankRentalSMS(
+                phoneNumber: phoneNumber,
+                userName: userName,
+                deviceId: deviceId,
+                tradeNo: tradeNo,
+              );
+
+              if (smsSent) {
+                log('✅ SMS notification sent successfully for power bank rental');
+              } else {
+                log('⚠️ Failed to send SMS notification, but rental was successful');
+              }
+            } else {
+              log('⚠️ No phone number available for SMS notification');
+            }
+          } catch (smsError) {
+            log('⚠️ SMS sending error (non-critical): $smsError');
+            // Don't fail the operation if SMS fails
+          }
+
           state = state.copyWith(
             opStatus: CreateRentOrderStatus.success,
             orderResponse: result,
           );
         } catch (firestoreError) {
           log('ERROR: Failed to save rent record to Firestore: ${firestoreError.toString()}');
-          
+
           // Check if it's a permission error
-          if (firestoreError.toString().contains('permission-denied') || 
+          if (firestoreError.toString().contains('permission-denied') ||
               firestoreError.toString().contains('PERMISSION_DENIED')) {
             state = state.copyWith(
               opStatus: CreateRentOrderStatus.error,
-              errorMsg: "Permission denied: User not authenticated. Please log in again.",
+              errorMsg:
+                  "Permission denied: User not authenticated. Please log in again.",
             );
           } else {
             state = state.copyWith(
               opStatus: CreateRentOrderStatus.error,
-              errorMsg: "Failed to save rent record: ${firestoreError.toString()}",
+              errorMsg:
+                  "Failed to save rent record: ${firestoreError.toString()}",
             );
           }
         }
@@ -160,9 +195,9 @@ class CreateRentOrderViewModel extends StateNotifier<CreateRentOrderState> {
         log('ChargeNow API error. Code: ${result.code}, Message: ${result.msg}');
         state = state.copyWith(
           opStatus: CreateRentOrderStatus.error,
-          errorMsg: result.msg.isNotEmpty 
-            ? result.msg 
-            : "Failed to create rent order (API Code: ${result.code}).",
+          errorMsg: result.msg.isNotEmpty
+              ? result.msg
+              : "Failed to create rent order (API Code: ${result.code}).",
         );
       }
     } on ChargeNowValidationException catch (e) {
@@ -180,7 +215,7 @@ class CreateRentOrderViewModel extends StateNotifier<CreateRentOrderState> {
       );
     } catch (e) {
       log('Unexpected error during rent order creation: ${e.toString()}');
-      
+
       // Check for authentication-related errors
       if (e.toString().contains('permission-denied') ||
           e.toString().contains('PERMISSION_DENIED') ||
