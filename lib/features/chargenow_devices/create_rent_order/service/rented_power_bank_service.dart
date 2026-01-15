@@ -36,6 +36,10 @@ class RentedPowerBankService {
       // Calculate rental period
       final DateTime rentStartDate = DateTime.now();
       final DateTime rentEndDate = rentStartDate.add(Duration(days: selectedPlan.durationDays));
+      
+      // Calculate reminder time based on plan duration
+      final int reminderMinutes = selectedPlan.reminderMinutes;
+      final DateTime reminderDateTime = rentEndDate.subtract(Duration(minutes: reminderMinutes));
 
       // Prepare the document data
       final Map<String, dynamic> rentData = {
@@ -49,8 +53,14 @@ class RentedPowerBankService {
         'planDurationDays': selectedPlan.durationDays,
         'rentStartDate': Timestamp.fromDate(rentStartDate),
         'rentEndDate': Timestamp.fromDate(rentEndDate),
+        'rentalEndTime': Timestamp.fromDate(rentEndDate), // For Cloud Function
+        'reminderTime': Timestamp.fromDate(reminderDateTime), // Dynamic reminder time
+        'reminderMinutes': reminderMinutes, // Minutes before end to remind
         'status': 'rented',
+        'reminderSMSSent': false, // For reminder SMS tracking
         'lastPenaltyAt': Timestamp.fromDate(rentEndDate),
+        'userPhoneNumber': currentUser.phoneNumber ?? '', // For SMS
+        'userName': currentUser.displayName ?? 'User', // For SMS
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };

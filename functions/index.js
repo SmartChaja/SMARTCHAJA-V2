@@ -19,3 +19,7 @@ exports.checkOverdueRentals = require("./src/functions/checkOverdueRentals");
 // Export the deletion feedback email function
 exports.sendDeletionFeedback =
   require("./src/functions/sendDeletionFeedback").sendDeletionFeedback;
+// Export the reminder SMS function
+const reminderSMSFunctions = require("./src/functions/sendReminderSMS");
+exports.sendReminderSMSFunction = reminderSMSFunctions.sendReminderSMSFunction;
+exports.sendReminderSMSManual = reminderSMSFunctions.sendReminderSMSManual;
