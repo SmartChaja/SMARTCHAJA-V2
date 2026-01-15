@@ -1,4 +1,4 @@
-const functions = require("firebase-functions");
+const functions = require("firebase-functions/v2");
 const admin = require("firebase-admin");
 const axios = require("axios");
 
@@ -10,7 +10,9 @@ const BEEM_SENDER_ID = "SmartChaja";
 const BEEM_API_ENDPOINT = "https://apisms.beem.africa/v1/send";
 
 /**
- * Format phone number to international format (Tanzania country code)
+ * Format phone number to international format (Tanzania country code).
+ * @param {string} phoneNumber - The phone number to format
+ * @return {string} The formatted phone number with country code
  */
 function formatPhoneNumber(phoneNumber) {
   let cleaned = phoneNumber.replace(/[^\d]/g, "");
@@ -29,7 +31,8 @@ function formatPhoneNumber(phoneNumber) {
 }
 
 /**
- * Generate Basic Authentication header for Beem API
+ * Generate Basic Authentication header for Beem API.
+ * @return {string} Basic auth header string
  */
 function getBasicAuth() {
   const credentials = `${BEEM_API_KEY}:${BEEM_SECRET_KEY}`;
@@ -38,7 +41,10 @@ function getBasicAuth() {
 }
 
 /**
- * Send SMS via Beem Africa API
+ * Send SMS via Beem Africa API.
+ * @param {string} phoneNumber - The recipient phone number
+ * @param {string} message - The SMS message text
+ * @return {Promise<boolean>} True if SMS sent successfully, false otherwise
  */
 async function sendReminderSMS(phoneNumber, message) {
   try {
@@ -66,15 +72,14 @@ async function sendReminderSMS(phoneNumber, message) {
 
     if (response.status === 200 && response.data.successful) {
       console.log(
-        `✅ Reminder SMS sent successfully to ${formattedPhone}. Request ID: ${response.data.request_id}`
+        `✅ SMS sent: ${formattedPhone}. ID: ${response.data.request_id}`,
       );
       return true;
-    } else {
-      console.error(
-        `❌ SMS failed: ${response.data.message}. Code: ${response.data.code}`
-      );
-      return false;
     }
+    console.error(
+      `❌ SMS failed: ${response.data.message}. Code: ${response.data.code}`,
+    );
+    return false;
   } catch (error) {
     console.error(`❌ Error sending SMS: ${error.message}`);
     return false;
@@ -82,12 +87,13 @@ async function sendReminderSMS(phoneNumber, message) {
 }
 
 /**
- * Cloud Function: Check rentals ending soon and send reminders
- * Scheduled to run every 5 minutes
+ * Cloud Function: Check rentals ending soon and send reminders.
+ * Scheduled to run every 5 minutes via Cloud Scheduler.
+ * @return {Promise<Object>} Object with sentCount and failureCount
  */
-exports.sendReminderSMSFunction = functions.pubsub
-  .schedule("every 5 minutes")
-  .onRun(async (context) => {
+exports.sendReminderSMSFunction = functions.scheduler.onSchedule(
+  "every 5 minutes",
+  async (context) => {
     try {
       console.log("📱 Starting reminder SMS check...");
 
@@ -107,7 +113,9 @@ exports.sendReminderSMSFunction = functions.pubsub
         .where("reminderSMSSent", "==", false)
         .get();
 
-      console.log(`Found ${rentalsSnapshot.docs.length} rentals needing reminders`);
+      console.log(
+        `Found ${rentalsSnapshot.docs.length} rentals needing reminders`,
+      );
 
       let sentCount = 0;
       let failureCount = 0;
@@ -118,10 +126,11 @@ exports.sendReminderSMSFunction = functions.pubsub
 
         try {
           const reminderMessage =
-            "SmartChaja Reminder: Your rental time is almost over. Please return the power bank to any SmartChaja station to avoid extra charges.";
+            "SmartChaja Reminder: Your rental time is almost " +
+            "over. Please return the power bank to any SmartChaja " +
+            "station to avoid extra charges.";
 
           const phoneNumber = rentalData.userPhoneNumber || "";
-          const deviceId = rentalData.deviceId || "Device";
           const reminderMinutes = rentalData.reminderMinutes || 15;
 
           if (phoneNumber) {
@@ -135,7 +144,8 @@ exports.sendReminderSMSFunction = functions.pubsub
               });
 
               console.log(
-                `✅ Reminder sent for rental: ${doc.id} (${reminderMinutes} mins before end)`
+                `✅ Reminder sent for rental: ${doc.id} ` +
+                `(${reminderMinutes} mins before end)`,
               );
               sentCount++;
             } else {
@@ -146,56 +156,71 @@ exports.sendReminderSMSFunction = functions.pubsub
             failureCount++;
           }
         } catch (error) {
-          console.error(`❌ Error processing rental ${doc.id}: ${error.message}`);
+          console.error(
+            `❌ Error processing rental ${doc.id}: ${error.message}`,
+          );
           failureCount++;
         }
       }
 
       console.log(
-        `📊 Reminder SMS Summary: Sent=${sentCount}, Failed=${failureCount}`
+        `📊 Reminder SMS Summary: Sent=${sentCount}, ` +
+        `Failed=${failureCount}`,
       );
       return { sentCount, failureCount };
     } catch (error) {
       console.error(`❌ Function error: ${error.message}`);
       throw error;
     }
-  });
+  },
+);
 
 /**
- * Callable function to manually send reminder SMS (for testing)
+ * Callable function to manually send reminder SMS (for testing).
+ * @param {Object} data - Request data containing phoneNumber and deviceId
+ * @param {Object} context - Firebase context with auth info
+ * @return {Promise<Object>} Response with success status and message
  */
-exports.sendReminderSMSManual = functions.https.onCall(async (data, context) => {
-  // Verify user is authenticated
-  if (!context.auth) {
-    throw new functions.https.HttpsError(
-      "unauthenticated",
-      "User must be authenticated"
-    );
-  }
+exports.sendReminderSMSManual = functions.https.onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    const data = request.data;
+    const auth = request.auth;
 
-  try {
-    const { phoneNumber, deviceId } = data;
-
-    if (!phoneNumber) {
+    // Verify user is authenticated
+    if (!auth) {
       throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Phone number is required"
+        "unauthenticated",
+        "User must be authenticated",
       );
     }
 
-    const message =
-      "SmartChaja Reminder: Your rental time is almost over. Please return the power bank to any SmartChaja station to avoid extra charges.";
+    try {
+      const { phoneNumber } = data;
 
-    const smsSent = await sendReminderSMS(phoneNumber, message);
+      if (!phoneNumber) {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          "Phone number is required",
+        );
+      }
 
-    return {
-      success: smsSent,
-      message: smsSent
-        ? "Reminder SMS sent successfully"
-        : "Failed to send reminder SMS",
-    };
-  } catch (error) {
-    console.error(`❌ Manual reminder error: ${error.message}`);
-    throw new functions.https.HttpsError("internal", error.message);
-  }
-});
+      const message =
+        "SmartChaja Reminder: Your rental time is almost " +
+        "over. Please return the power bank to any SmartChaja " +
+        "station to avoid extra charges.";
+
+      const smsSent = await sendReminderSMS(phoneNumber, message);
+
+      return {
+        success: smsSent,
+        message: smsSent ?
+          "Reminder SMS sent successfully" :
+          "Failed to send reminder SMS",
+      };
+    } catch (error) {
+      console.error(`❌ Manual reminder error: ${error.message}`);
+      throw new functions.https.HttpsError("internal", error.message);
+    }
+  },
+);
