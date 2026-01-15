@@ -71,7 +71,7 @@ class BeemSmsService {
   }) async {
     final formattedPhone = _formatPhoneNumber(phoneNumber);
     final message =
-        'Hi $userName your power bank $deviceId rental activated. Trade $tradeNo. SmartChaja';
+        'Thank you for using SmartChaja. Enjoy charging. Please return the power bank to any SmartChaja station before your rental time ends.';
 
     return _sendSms(
       phoneNumber: formattedPhone,
@@ -90,12 +90,31 @@ class BeemSmsService {
   }) async {
     final formattedPhone = _formatPhoneNumber(phoneNumber);
     final message =
-        'Hi $userName your power bank $deviceId returned successfully. Trade $tradeNo. Thank you SmartChaja';
+        'Power bank returned successfully. Thank you for choosing SmartChaja. We appreciate you and look forward to serving you again.';
 
     return _sendSms(
       phoneNumber: formattedPhone,
       message: message,
       operationType: 'Power Bank Return',
+    );
+  }
+
+  /// Send SMS reminder before rental time ends
+  /// Returns true if SMS sent successfully, false otherwise
+  Future<bool> sendPowerBankReminderSMS({
+    required String phoneNumber,
+    required String userName,
+    required String deviceId,
+    required String tradeNo,
+  }) async {
+    final formattedPhone = _formatPhoneNumber(phoneNumber);
+    final message =
+        'SmartChaja Reminder: Your rental time is almost over. Please return the power bank to any SmartChaja station to avoid extra charges.';
+
+    return _sendSms(
+      phoneNumber: formattedPhone,
+      message: message,
+      operationType: 'Power Bank Rental Reminder',
     );
   }
 
