@@ -70,6 +70,38 @@ class BeemSmsTestHelper {
     }
   }
 
+  /// Test sending a power bank reminder SMS
+  /// This will send an actual SMS to the provided phone number
+  static Future<void> testSendReminderSMS({
+    String phoneNumber = '0778412125',
+    String userName = 'Test User',
+    String deviceId = 'PB-001',
+    String tradeNo = 'TEST123456',
+  }) async {
+    log('🧪 Testing Power Bank Reminder SMS...');
+    log('Phone: $phoneNumber');
+    log('User: $userName');
+    log('Device: $deviceId');
+    log('Trade No: $tradeNo');
+
+    try {
+      final result = await _smsService.sendPowerBankReminderSMS(
+        phoneNumber: phoneNumber,
+        userName: userName,
+        deviceId: deviceId,
+        tradeNo: tradeNo,
+      );
+
+      if (result) {
+        log('✅ TEST PASSED: Reminder SMS sent successfully!');
+      } else {
+        log('❌ TEST FAILED: Reminder SMS sending failed!');
+      }
+    } catch (e) {
+      log('❌ TEST ERROR: ${e.toString()}');
+    }
+  }
+
   /// Test both SMS types
   static Future<void> testBothSMS({
     String phoneNumber = '0778412125',
@@ -82,6 +114,18 @@ class BeemSmsTestHelper {
 
     // Test rental SMS
     await testSendRentalSMS(
+      phoneNumber: phoneNumber,
+      userName: userName,
+      deviceId: deviceId,
+      tradeNo: tradeNo,
+    );
+
+    await Future.delayed(const Duration(seconds: 2));
+
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    // Test reminder SMS
+    await testSendReminderSMS(
       phoneNumber: phoneNumber,
       userName: userName,
       deviceId: deviceId,
