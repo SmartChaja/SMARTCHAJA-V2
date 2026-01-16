@@ -142,8 +142,8 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen>
     final authViewModel = ref.read(authViewModelProvider.notifier);
 
     try {
-      // verifyOTP returns bool indicating if profile exists
-      final bool profileExists =
+      // verifyOTP returns bool? (null if verification failed)
+      final bool? profileExists =
           await authViewModel.verifyOTP(_pinController.text);
 
       debugPrint('📝 VerifyOTP returned: $profileExists');
@@ -157,11 +157,11 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen>
           ref.read(authViewModelProvider).error!,
           color: Colors.red,
         );
-        return;
+        return; // Explicitly stop here if error
       }
 
-      // Verification successful - navigate based on profile existence
-      if (!mounted) return;
+      // Only navigate if verification succeeded (profileExists is not null)
+      if (!mounted || profileExists == null) return;
 
       if (profileExists) {
         debugPrint('✅ Profile exists - navigating to home');
