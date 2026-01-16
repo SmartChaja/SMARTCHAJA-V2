@@ -178,11 +178,11 @@ class AuthViewModel extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> verifyOTP(String smsCode) async {
+  Future<bool?> verifyOTP(String smsCode) async {
     if (state.verificationId == null) {
       state = state.copyWith(
           error: 'No verification ID found. Please request OTP again.');
-      return false;
+      return null;
     }
 
     state = state.copyWith(isLoading: true, error: null);
@@ -223,13 +223,13 @@ class AuthViewModel extends StateNotifier<AuthState> {
         isLoading: false,
         error: errorMessage,
       );
-      return false;
+      return null;
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         error: 'Verification error: ${e.toString()}',
       );
-      return false;
+      return null;
     }
   }
 

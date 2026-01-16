@@ -23,3 +23,8 @@ exports.sendDeletionFeedback =
 const reminderSMSFunctions = require("./src/functions/sendReminderSMS");
 exports.sendReminderSMSFunction = reminderSMSFunctions.sendReminderSMSFunction;
 exports.sendReminderSMSManual = reminderSMSFunctions.sendReminderSMSManual;
+
+// Export OTP verification and custom token functions (Beem Africa SMS)
+const otpFunctions = require("./src/functions/verifyOTPAndGetToken");
+exports.verifyOTPAndGetToken = otpFunctions.verifyOTPAndGetToken;
+exports.sendOTP = otpFunctions.sendOTP;

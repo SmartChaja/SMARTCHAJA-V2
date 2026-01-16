@@ -45,6 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Background Modes for Firebase Phone Auth APNs -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<!-- Permission Descriptions -->
     <key>NSPhotoLibraryUsageDescription</key>
     <string>This app needs access to your photo library to allow you to select a profile picture and attach images.</string>
@@ -69,13 +74,14 @@
             </array>
         </dict>
 		
-	<!-- Firebase Phone Auth -->
+	<!-- Firebase Phone Auth reCAPTCHA fallback URL scheme -->
     <dict>
         <key>CFBundleTypeRole</key>
         <string>Editor</string>
         <key>CFBundleURLSchemes</key>
         <array>
-            <string>app-1-950587682922-ios-acf36eebc9e0d8de79da13</string>
+            <!-- This must match the REVERSED_CLIENT_ID from GoogleService-Info.plist -->
+            <string>com.googleusercontent.apps.950587682922-6tootm4dqbtls1fimm31eh8p4a3bp3vl</string>
         </array>
     </dict>
     </array>

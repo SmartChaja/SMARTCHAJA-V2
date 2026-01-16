@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
@@ -13,13 +14,16 @@ class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
   User? get currentUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  bool _isVerificationHandled = false;
+  // Store phone number for verification flow
+  String? _pendingPhoneNumber;
 
-  // Send OTP
+  // Send OTP via Beem Africa (Cloud Function)
+  // Works on both iOS and Android without APNs configuration
   Future<AuthResult> sendOTP({
     required String phoneNumber,
     required Function(String) onCodeSent,
@@ -27,64 +31,112 @@ class FirebaseAuthService {
     TextEditingController? pinController,
     required Function() onAutoVerificationCompleted,
   }) async {
-    _isVerificationHandled = false;
-
     try {
-      await _auth.verifyPhoneNumber(
-        phoneNumber: phoneNumber,
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          if (_isVerificationHandled) return;
-          _isVerificationHandled = true;
+      debugPrint('📱 Sending OTP via Beem Africa to: $phoneNumber');
 
-          try {
-            // Auto-fill the SMS code if pinController is provided
-            if (pinController != null && credential.smsCode != null) {
-              pinController.text = credential.smsCode!;
-            }
+      // Store phone number for later verification
+      _pendingPhoneNumber = phoneNumber;
 
-            await _auth.signInWithCredential(credential);
-            onAutoVerificationCompleted();
-          } catch (e) {
-            onVerificationFailed('Auto sign-in failed: ${e.toString()}');
-          }
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          onVerificationFailed(e.message ?? 'Verification failed');
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          onCodeSent(verificationId);
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {
-          _isVerificationHandled = false;
-        },
-        timeout: const Duration(seconds: 60),
-      );
-      return AuthResult.success(message: 'OTP sent successfully');
+      // Call Cloud Function to send OTP via Beem Africa
+      final callable = _functions.httpsCallable('sendOTP');
+      final result = await callable.call<Map<String, dynamic>>({
+        'phoneNumber': phoneNumber,
+      });
+
+      final data = result.data;
+
+      if (data['success'] == true) {
+        debugPrint('✅ OTP sent successfully via Beem Africa');
+        // Use phone number as "verificationId" for our custom flow
+        final formattedPhone = data['phoneNumber'] as String? ?? phoneNumber;
+        _pendingPhoneNumber = formattedPhone;
+        onCodeSent(formattedPhone);
+        return AuthResult.success(message: 'OTP sent successfully');
+      } else {
+        final errorMsg = data['message'] ?? 'Failed to send OTP';
+        onVerificationFailed(errorMsg);
+        return AuthResult.failure(errorMsg);
+      }
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('❌ Cloud Function error: ${e.code} - ${e.message}');
+      String errorMessage = e.message ?? 'Failed to send OTP';
+
+      // Handle specific error codes
+      if (e.code == 'resource-exhausted') {
+        errorMessage = e.message ?? 'Please wait before requesting another OTP';
+      } else if (e.code == 'failed-precondition') {
+        errorMessage = e.message ?? 'SMS service not available';
+      }
+
+      onVerificationFailed(errorMessage);
+      return AuthResult.failure(errorMessage);
     } catch (e) {
+      debugPrint('❌ Error sending OTP: $e');
+      onVerificationFailed('Failed to send OTP: ${e.toString()}');
       return AuthResult.failure(e.toString());
     }
   }
 
-  // Verify OTP and Sign In
+  // Verify OTP and Sign In via Cloud Function + Custom Token
+  // This bypasses Firebase Phone Auth and APNs requirement on iOS
   Future<AuthResult> verifyOTPAndSignIn({
-    required String verificationId,
+    required String verificationId, // This is the phone number in our flow
     required String smsCode,
   }) async {
     try {
-      PhoneAuthCredential credential = PhoneAuthProvider.credential(
-        verificationId: verificationId,
-        smsCode: smsCode,
-      );
+      debugPrint('🔐 Verifying OTP via Cloud Function...');
 
-      UserCredential userCredential =
-          await _auth.signInWithCredential(credential);
+      // Use stored phone number or the verificationId (which is phone number)
+      final phoneNumber = _pendingPhoneNumber ?? verificationId;
 
-      if (userCredential.user != null) {
+      // Call Cloud Function to verify OTP and get custom token
+      final callable = _functions.httpsCallable('verifyOTPAndGetToken');
+      final result = await callable.call<Map<String, dynamic>>({
+        'phoneNumber': phoneNumber,
+        'otpCode': smsCode,
+      });
+
+      final data = result.data;
+
+      if (data['success'] == true && data['token'] != null) {
+        debugPrint('✅ OTP verified, signing in with custom token...');
+
+        // Sign in with the custom token
+        final customToken = data['token'] as String;
+        await _auth.signInWithCustomToken(customToken);
+
+        debugPrint('✅ Successfully signed in!');
+        _pendingPhoneNumber = null;
         return AuthResult.success(message: 'Login successful');
       } else {
-        return AuthResult.failure('Login failed');
+        return AuthResult.failure('Verification failed');
       }
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('❌ Verification error: ${e.code} - ${e.message}');
+      String errorMessage = e.message ?? 'Verification failed';
+
+      // Handle specific error codes
+      switch (e.code) {
+        case 'not-found':
+          errorMessage = 'No OTP found. Please request a new one.';
+          break;
+        case 'deadline-exceeded':
+          errorMessage = 'OTP has expired. Please request a new one.';
+          break;
+        case 'permission-denied':
+          errorMessage = e.message ?? 'Invalid OTP code.';
+          break;
+        case 'resource-exhausted':
+          errorMessage = 'Too many failed attempts. Please request a new OTP.';
+          break;
+        case 'failed-precondition':
+          errorMessage = 'This OTP has already been used.';
+          break;
+      }
+
+      return AuthResult.failure(errorMessage);
     } catch (e) {
+      debugPrint('❌ Error verifying OTP: $e');
       return AuthResult.failure(e.toString());
     }
   }
@@ -297,8 +349,9 @@ class FirebaseAuthService {
   }
 
   // Update phone number
+  // With Beem Africa OTP, we verify the new phone then update Firestore
   Future<AuthResult> updatePhoneNumber({
-    required String verificationId,
+    required String verificationId, // This is the new phone number
     required String smsCode,
   }) async {
     try {
@@ -306,15 +359,22 @@ class FirebaseAuthService {
         return AuthResult.failure('No authenticated user found');
       }
 
-      PhoneAuthCredential credential = PhoneAuthProvider.credential(
-        verificationId: verificationId,
-        smsCode: smsCode,
-      );
+      // Verify OTP for the new phone number
+      final callable = _functions.httpsCallable('verifyOTPAndGetToken');
+      final result = await callable.call<Map<String, dynamic>>({
+        'phoneNumber': verificationId, // The new phone number
+        'otpCode': smsCode,
+      });
 
-      await currentUser!.updatePhoneNumber(credential);
+      final data = result.data;
 
+      if (data['success'] != true) {
+        return AuthResult.failure('Phone verification failed');
+      }
+
+      // Update phone number in Firestore user document
       await _firestore.collection('users').doc(currentUser!.uid).update({
-        'phoneNumber': currentUser!.phoneNumber,
+        'phoneNumber': verificationId,
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       });
 

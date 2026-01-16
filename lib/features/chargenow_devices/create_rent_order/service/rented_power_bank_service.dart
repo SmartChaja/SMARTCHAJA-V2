@@ -24,7 +24,7 @@ class RentedPowerBankService {
     try {
       // CRITICAL: Get current authenticated user
       final currentUser = _auth.currentUser;
-      
+
       if (currentUser == null) {
         log('ERROR: No authenticated user found. Cannot save rent record.');
         throw Exception('User not authenticated. Cannot save rent record.');
@@ -35,11 +35,13 @@ class RentedPowerBankService {
 
       // Calculate rental period
       final DateTime rentStartDate = DateTime.now();
-      final DateTime rentEndDate = rentStartDate.add(Duration(days: selectedPlan.durationDays));
-      
+      final DateTime rentEndDate =
+          rentStartDate.add(Duration(days: selectedPlan.durationDays));
+
       // Calculate reminder time based on plan duration
       final int reminderMinutes = selectedPlan.reminderMinutes;
-      final DateTime reminderDateTime = rentEndDate.subtract(Duration(minutes: reminderMinutes));
+      final DateTime reminderDateTime =
+          rentEndDate.subtract(Duration(minutes: reminderMinutes));
 
       // Prepare the document data
       final Map<String, dynamic> rentData = {
@@ -54,7 +56,8 @@ class RentedPowerBankService {
         'rentStartDate': Timestamp.fromDate(rentStartDate),
         'rentEndDate': Timestamp.fromDate(rentEndDate),
         'rentalEndTime': Timestamp.fromDate(rentEndDate), // For Cloud Function
-        'reminderTime': Timestamp.fromDate(reminderDateTime), // Dynamic reminder time
+        'reminderTime':
+            Timestamp.fromDate(reminderDateTime), // Dynamic reminder time
         'reminderMinutes': reminderMinutes, // Minutes before end to remind
         'status': 'rented',
         'reminderSMSSent': false, // For reminder SMS tracking
@@ -77,9 +80,10 @@ class RentedPowerBankService {
       log('✅ Successfully saved rent record to Firestore for user: $userId, tradeNo: $tradeNo');
     } on FirebaseException catch (e) {
       log('❌ Firebase error saving rent record: ${e.code} - ${e.message}');
-      
+
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied: User not authenticated. Cannot save rent record.');
+        throw Exception(
+            'Permission denied: User not authenticated. Cannot save rent record.');
       } else if (e.code == 'unauthenticated') {
         throw Exception('User not authenticated. Cannot save rent record.');
       } else {
@@ -95,7 +99,7 @@ class RentedPowerBankService {
   Future<List<Map<String, dynamic>>> getRentedPowerBanks(String userId) async {
     try {
       final currentUser = _auth.currentUser;
-      
+
       if (currentUser == null || currentUser.uid != userId) {
         log('ERROR: User not authenticated or UID mismatch');
         throw Exception('User not authenticated');
@@ -122,26 +126,25 @@ class RentedPowerBankService {
   }
 
   /// Get a specific rented power bank by tradeNo
-  Future<Map<String, dynamic>?> getRentedPowerBankByTradeNo(String tradeNo) async {
+  Future<Map<String, dynamic>?> getRentedPowerBankByTradeNo(
+      String tradeNo) async {
     try {
       final currentUser = _auth.currentUser;
-      
+
       if (currentUser == null) {
         log('ERROR: User not authenticated');
         throw Exception('User not authenticated');
       }
 
-      final docSnapshot = await _firestore
-          .collection('rented_power_banks')
-          .doc(tradeNo)
-          .get();
+      final docSnapshot =
+          await _firestore.collection('rented_power_banks').doc(tradeNo).get();
 
       if (!docSnapshot.exists) {
         return null;
       }
 
       final data = docSnapshot.data()!;
-      
+
       // Verify the document belongs to the current user
       if (data['userId'] != currentUser.uid) {
         log('ERROR: Rent record does not belong to current user');
@@ -163,17 +166,15 @@ class RentedPowerBankService {
   Future<void> updateRentStatus(String tradeNo, String newStatus) async {
     try {
       final currentUser = _auth.currentUser;
-      
+
       if (currentUser == null) {
         log('ERROR: User not authenticated');
         throw Exception('User not authenticated');
       }
 
       // First verify the document belongs to the current user
-      final docSnapshot = await _firestore
-          .collection('rented_power_banks')
-          .doc(tradeNo)
-          .get();
+      final docSnapshot =
+          await _firestore.collection('rented_power_banks').doc(tradeNo).get();
 
       if (!docSnapshot.exists) {
         throw Exception('Rent record not found');
@@ -186,10 +187,7 @@ class RentedPowerBankService {
       }
 
       // Update the status
-      await _firestore
-          .collection('rented_power_banks')
-          .doc(tradeNo)
-          .update({
+      await _firestore.collection('rented_power_banks').doc(tradeNo).update({
         'status': newStatus,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -197,7 +195,7 @@ class RentedPowerBankService {
       log('✅ Successfully updated rent status to: $newStatus for tradeNo: $tradeNo');
     } on FirebaseException catch (e) {
       log('Firebase error updating rent status: ${e.code} - ${e.message}');
-      
+
       if (e.code == 'permission-denied') {
         throw Exception('Permission denied: Cannot update rent record');
       } else {
@@ -213,7 +211,7 @@ class RentedPowerBankService {
   Future<List<Map<String, dynamic>>> getActiveRentals(String userId) async {
     try {
       final currentUser = _auth.currentUser;
-      
+
       if (currentUser == null || currentUser.uid != userId) {
         log('ERROR: User not authenticated or UID mismatch');
         throw Exception('User not authenticated');
