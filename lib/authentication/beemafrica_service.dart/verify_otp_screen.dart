@@ -108,7 +108,7 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen>
       debugPrint('🔍 Checking if profile exists for user: ${currentUser.uid}');
       final profileExists =
           await authRepository.userProfileExists(currentUser.uid);
-      
+
       debugPrint('✅ Profile exists result: $profileExists');
 
       if (!mounted) return;
@@ -141,7 +141,8 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen>
       debugPrint('📝 VerifyOTP returned: $profileExists');
 
       if (ref.read(authViewModelProvider).error != null) {
-        debugPrint('❌ Error in auth state: ${ref.read(authViewModelProvider).error}');
+        debugPrint(
+            '❌ Error in auth state: ${ref.read(authViewModelProvider).error}');
         return; // Error will be shown via listener
       }
 

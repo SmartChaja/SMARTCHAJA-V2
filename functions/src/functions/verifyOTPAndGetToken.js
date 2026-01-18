@@ -92,35 +92,84 @@ exports.verifyOTPAndGetToken = onCall(async (request) => {
 
     logger.info(`OTP verified successfully for ${cleanPhone}`);
 
-    // Generate a unique UID based on phone number
-    // This ensures the same phone always gets the same UID
-    const uid = `phone_${cleanPhone.replace(/\+/g, "")}`;
-
-    // Try to get or create the user in Firebase Auth
+    // Generate a unique UID based on phone number (new logic)
+    const newUid = `phone_${cleanPhone.replace(/\+/g, "")}`;
     let userRecord;
+    let usedUid = newUid;
     try {
-      userRecord = await admin.auth().getUser(uid);
-      logger.info(`Existing user found: ${uid}`);
+      // Try new UID logic first
+      userRecord = await admin.auth().getUser(newUid);
+      logger.info(`Existing user found: ${newUid}`);
+      // If phone number is different, update it
+      if (userRecord.phoneNumber !== (cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`)) {
+        await admin.auth().updateUser(newUid, {
+          phoneNumber: cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`,
+        });
+        logger.info(`Updated phone number for user: ${newUid}`);
+        userRecord = await admin.auth().getUser(newUid); // Refresh user record
+      }
     } catch (error) {
       if (error.code === "auth/user-not-found") {
-        // Create new user
-        userRecord = await admin.auth().createUser({
-          uid: uid,
-          phoneNumber: cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`,
-          disabled: false,
-        });
-        logger.info(`New user created: ${uid}`);
+        // Try to find user by phone number (old user)
+        try {
+          userRecord = await admin.auth().getUserByPhoneNumber(
+            cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`,
+          );
+          usedUid = userRecord.uid;
+          logger.info(
+            `Found old user by phone number: ${userRecord.uid}`,
+          );
+        } catch (err2) {
+          if (err2.code === "auth/user-not-found") {
+            // Create new user
+            userRecord = await admin.auth().createUser({
+              uid: newUid,
+              phoneNumber: cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`,
+              disabled: false,
+            });
+            logger.info(`New user created: ${newUid}`);
+            usedUid = newUid;
+          } else {
+            throw err2;
+          }
+        }
+      } else if (error.code === "auth/phone-number-already-exists") {
+        // Phone number already exists for another user, find and use that user
+        userRecord = await admin.auth().getUserByPhoneNumber(
+          cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`,
+        );
+        usedUid = userRecord.uid;
+        logger.info(
+          `Found user by phone number: ${userRecord.uid}`,
+        );
       } else {
         throw error;
       }
     }
 
-    // Generate custom token
-    const customToken = await admin.auth().createCustomToken(uid, {
-      phoneNumber: cleanPhone,
-    });
+    // Generate custom token for the actual UID (old or new)
+    const customToken = await admin.auth().createCustomToken(
+      usedUid,
+      {
+        phoneNumber: cleanPhone,
+      },
+    );
 
-    logger.info(`Custom token generated for ${cleanPhone}`);
+    logger.info(
+      "Custom token generated for " + cleanPhone,
+    );
+    logger.info(
+      "UID: " + usedUid,
+    );
+
+    // Split long logger lines if needed
+    // logger.info(
+    //   'Custom token generated for ' +
+    //   cleanPhone +
+    //   ' (UID: ' +
+    //   usedUid +
+    //   ')',
+    // );
 
     // Clean up OTP document after successful verification
     await otpDocRef.delete();
@@ -128,7 +177,7 @@ exports.verifyOTPAndGetToken = onCall(async (request) => {
     return {
       success: true,
       token: customToken,
-      uid: uid,
+      uid: usedUid,
       isNewUser: !userRecord.customClaims,
     };
   } catch (error) {

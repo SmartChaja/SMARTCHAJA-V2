@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>950587682922-6tootm4dqbtls1fimm31eh8p4a3bp3vl.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.950587682922-6tootm4dqbtls1fimm31eh8p4a3bp3vl</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>950587682922-1u2j7gvacjr82hf41pma4mfilg8tdn2c.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyBIq6rVgad_ta45tSGh-L4cQE0DfbXwO7A</string>
+	<key>GCM_SENDER_ID</key>
+	<string>950587682922</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.tjrsmartchaja.smartchaja</string>
+	<key>PROJECT_ID</key>
+	<string>chaja-kiganjani</string>
+	<key>STORAGE_BUCKET</key>
+	<string>chaja-kiganjani.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:950587682922:ios:230b81cce071dd9b79da13</string>
+</dict>
+</plist>
