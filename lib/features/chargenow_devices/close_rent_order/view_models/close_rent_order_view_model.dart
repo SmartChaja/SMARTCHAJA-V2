@@ -47,9 +47,9 @@ class CloseRentOrderViewModel extends StateNotifier<CloseRentOrderState> {
 
             if (rentalDetails != null) {
               final deviceId = rentalDetails['deviceId'] ?? 'Device';
-              final userPhone = rentalDetails['userPhoneNumber'] ??
-                  currentUser.phoneNumber ??
-                  '';
+              final userPhone = (currentUser.phoneNumber != null && currentUser.phoneNumber!.isNotEmpty)
+                  ? currentUser.phoneNumber
+                  : (rentalDetails['userPhoneNumber'] ?? '');
               final userName = rentalDetails['userName'] ??
                   currentUser.displayName ??
                   'User';
