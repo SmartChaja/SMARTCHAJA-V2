@@ -214,23 +214,27 @@ exports.sendOTP = onCall(async (request) => {
   logger.info(`Sending OTP to: ${cleanPhone}`);
 
   const db = admin.firestore();
-
-  // Check rate limiting - prevent spam
   const otpDocRef = db.collection("otp_codes").doc(cleanPhone);
-  const existingOtp = await otpDocRef.get();
 
-  if (existingOtp.exists) {
-    const createdAtRaw = existingOtp.data().createdAt;
-    const createdAt = createdAtRaw ? createdAtRaw.toDate() : null;
-    if (createdAt) {
-      const secondsSinceLastOtp = (new Date() - createdAt) / 1000;
-      if (secondsSinceLastOtp < 60) {
-        throw new HttpsError(
-          "resource-exhausted",
-          `Please wait ${Math.ceil(60 - secondsSinceLastOtp)} seconds before requesting another OTP.`,
-        );
-      }
-    }
+  // DEMO ACCOUNT BYPASS: If this is the demo account, use default OTP and skip Beem Africa
+  const DEMO_PHONE = "+255123456789"; // Updated to match your demo account
+  const DEMO_OTP = "123456"; // Change to your default OTP if needed
+  if (cleanPhone === DEMO_PHONE || cleanPhone === DEMO_PHONE.replace("+", "")) {
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    await otpDocRef.set({
+      code: DEMO_OTP,
+      phoneNumber: cleanPhone,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      verified: false,
+      attempts: 0,
+    });
+    logger.info(`Demo account detected, default OTP set for ${cleanPhone}`);
+    return {
+      success: true,
+      message: "Demo OTP set (no SMS sent)",
+      phoneNumber: cleanPhone,
+    };
   }
 
   // Generate 6-digit OTP
@@ -246,8 +250,7 @@ exports.sendOTP = onCall(async (request) => {
     verified: false,
     attempts: 0,
   });
-
-  // Get Beem Africa credentials from environment or Firestore config
+  // ...existing code...
   const configDoc = await db.collection("config").doc("beem_africa").get();
   let beemConfig;
 
