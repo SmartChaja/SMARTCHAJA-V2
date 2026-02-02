@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:smart_chaja/app_constants/app_constants.dart';
 import 'package:smart_chaja/app_constants/charge_now_api_config.dart';
 import 'package:smart_chaja/features/chargenow_devices/create_rent_order/provider/create_rent_order_provider.dart';
@@ -50,15 +51,17 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
 
     // Check authentication - redirect to OTP if not logged in
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authState = ref.read(authViewModelProvider);
-      if (!authState.isAuthenticated || authState.user == null) {
-        // User not registered/authenticated, redirect to OTP registration
+      // Check Firebase Auth directly first for reliable auth status
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        // User not authenticated, redirect to OTP registration
         if (mounted) {
           Navigator.of(context).pushReplacementNamed('/send-otp');
         }
         return;
       }
 
+      // User is authenticated, refresh profile in Riverpod
       ref.read(authViewModelProvider.notifier).refreshUserProfile();
     });
 
