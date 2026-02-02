@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_chaja/features/chargenow_devices/api_exception/chargenow_api_exception.dart';
 import 'package:smart_chaja/features/chargenow_devices/close_rent_order/model/close_rent_order_params.dart';
@@ -7,6 +8,12 @@ import 'package:smart_chaja/features/chargenow_devices/close_rent_order/view_mod
 import 'package:smart_chaja/features/chargenow_devices/create_rent_order/service/rented_power_bank_service.dart';
 import 'package:smart_chaja/authentication/beemafrica_service.dart/beem_sms_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+void debugPrintSMS(String message) {
+  if (kDebugMode) {
+    debugPrint('💬 SMS Debug: $message');
+  }
+}
 
 class CloseRentOrderViewModel extends StateNotifier<CloseRentOrderState> {
   final ChargeNowCloseService _closeService;
@@ -47,10 +54,20 @@ class CloseRentOrderViewModel extends StateNotifier<CloseRentOrderState> {
 
             if (rentalDetails != null) {
               final deviceId = rentalDetails['deviceId'] ?? 'Device';
-              final userPhone = (currentUser.phoneNumber != null &&
-                      currentUser.phoneNumber!.isNotEmpty)
-                  ? currentUser.phoneNumber
-                  : (rentalDetails['userPhoneNumber'] ?? '');
+              // Try to get phone number from multiple sources
+              String userPhone = '';
+
+              // First try: Firebase phone number
+              if (currentUser.phoneNumber != null &&
+                  currentUser.phoneNumber!.isNotEmpty) {
+                userPhone = currentUser.phoneNumber!;
+              }
+              // Second try: Rental details have user phone
+              else if (rentalDetails['userPhoneNumber'] != null &&
+                  rentalDetails['userPhoneNumber'].toString().isNotEmpty) {
+                userPhone = rentalDetails['userPhoneNumber'].toString();
+              }
+
               final userName = rentalDetails['userName'] ??
                   currentUser.displayName ??
                   'User';
@@ -60,6 +77,7 @@ class CloseRentOrderViewModel extends StateNotifier<CloseRentOrderState> {
                 final smsService = BeemSmsService();
 
                 if (userPhone.isNotEmpty) {
+                  log('📱 Attempting to send return SMS to: $userPhone');
                   final smsSent = await smsService.sendPowerBankReturnSMS(
                     phoneNumber: userPhone,
                     userName: userName,
@@ -74,6 +92,8 @@ class CloseRentOrderViewModel extends StateNotifier<CloseRentOrderState> {
                   }
                 } else {
                   log('⚠️ No phone number available for SMS notification');
+                  debugPrintSMS(
+                      'Phone sources checked - Firebase: "${currentUser.phoneNumber}", Rental DB: "${rentalDetails['userPhoneNumber']}"');
                 }
               } catch (smsError) {
                 log('⚠️ SMS sending error (non-critical): $smsError');

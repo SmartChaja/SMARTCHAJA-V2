@@ -147,6 +147,7 @@ class CreateRentOrderViewModel extends StateNotifier<CreateRentOrderState> {
             final userName = currentUser.displayName ?? 'User';
 
             if (phoneNumber.isNotEmpty) {
+              log('📱 Attempting to send rental SMS to: $phoneNumber');
               final smsSent = await smsService.sendPowerBankRentalSMS(
                 phoneNumber: phoneNumber,
                 userName: userName,
@@ -161,6 +162,7 @@ class CreateRentOrderViewModel extends StateNotifier<CreateRentOrderState> {
               }
             } else {
               log('⚠️ No phone number available for SMS notification');
+              log('Note: Firebase phone number is empty. Check if user profile has phone stored.');
             }
           } catch (smsError) {
             log('⚠️ SMS sending error (non-critical): $smsError');

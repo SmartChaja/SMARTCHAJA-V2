@@ -33,7 +33,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   Future<void> _checkAuth() async {
     await Future.delayed(const Duration(milliseconds: 500));
-    
+
     // Fetch plans for non-logged-in users to display immediately on profile page
     if (mounted) {
       try {
@@ -44,12 +44,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         debugPrint('⚠️ Error fetching plans at splash: $e');
       }
     }
-    
+
     if (!mounted) return;
-    
+
     // Check if user is already logged in
     final currentUser = FirebaseAuth.instance.currentUser;
-    
+
     if (currentUser != null) {
       debugPrint('✅ User already logged in: ${currentUser.uid}');
       _navigateTo('/home');
