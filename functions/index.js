@@ -24,6 +24,10 @@ const reminderSMSFunctions = require("./src/functions/sendReminderSMS");
 exports.sendReminderSMSFunction = reminderSMSFunctions.sendReminderSMSFunction;
 exports.sendReminderSMSManual = reminderSMSFunctions.sendReminderSMSManual;
 
+// Export the return SMS trigger function (fires when rental status changes to "returned")
+exports.sendReturnSMSOnStatusChange = require("./src/functions/sendReturnSMS")
+  .sendReturnSMSOnStatusChange;
+
 // Export OTP verification and custom token functions (Beem Africa SMS)
 const otpFunctions = require("./src/functions/verifyOTPAndGetToken");
 exports.verifyOTPAndGetToken = otpFunctions.verifyOTPAndGetToken;
