@@ -105,7 +105,11 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _scannerController.dispose();
+    try {
+      _scannerController.dispose();
+    } catch (e) {
+      log('Error disposing scanner controller: $e');
+    }
     _deviceIdController.dispose();
     _callbackURLController.dispose();
     super.dispose();
@@ -158,7 +162,11 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
     if (barcodes.isNotEmpty) {
       final String? code = barcodes.first.rawValue;
       if (code != null && code.trim().isNotEmpty) {
-        _scannerController.stop();
+        try {
+          await _scannerController.stop();
+        } catch (e) {
+          log('Error stopping scanner: $e');
+        }
 
         final String scannedValue = code.trim();
         log('Raw scanned QR code: $scannedValue');
@@ -175,7 +183,13 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
               iconData: Icons.qr_code,
               color: AppColors.errorColor,
             );
-            _scannerController.start();
+            try {
+              if (_showScanner) {
+                _scannerController.start();
+              }
+            } catch (e) {
+              log('Error restarting scanner: $e');
+            }
           }
           return;
         }
@@ -208,7 +222,11 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
           );
         }
         if (_showScanner && mounted) {
-          _scannerController.start();
+          try {
+            await _scannerController.start();
+          } catch (e) {
+            log('Error restarting scanner: $e');
+          }
         }
         return;
       }
@@ -228,7 +246,11 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
           );
         }
         if (_showScanner && mounted) {
-          _scannerController.start();
+          try {
+            await _scannerController.start();
+          } catch (e) {
+            log('Error restarting scanner: $e');
+          }
         }
         return;
       }
@@ -244,7 +266,11 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
           );
         }
         if (_showScanner && mounted) {
-          _scannerController.start();
+          try {
+            await _scannerController.start();
+          } catch (e) {
+            log('Error restarting scanner: $e');
+          }
         }
         return;
       }
@@ -274,7 +300,10 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
             },
           );
         },
-      );
+      ).catchError((e) {
+        log('Error in plan selection dialog: $e');
+        return null;
+      });
 
       if (!mounted) return;
 
@@ -284,7 +313,28 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
       } else {
         log('User canceled plan selection.');
         if (_showScanner && mounted) {
-          _scannerController.start();
+          try {
+            await _scannerController.start();
+          } catch (e) {
+            log('Error restarting scanner: $e');
+          }
+        }
+      }
+    } catch (e) {
+      log('Error in plan selection flow: $e');
+      if (mounted) {
+        TopSnackBar.show(
+          context,
+          "An error occurred. Please try again.",
+          iconData: Icons.error_outline_rounded,
+          color: AppColors.errorColor,
+        );
+      }
+      if (_showScanner && mounted) {
+        try {
+          await _scannerController.start();
+        } catch (scannerError) {
+          log('Error restarting scanner: $scannerError');
         }
       }
     } finally {
@@ -309,7 +359,11 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
         color: AppColors.errorColor,
       );
       if (_showScanner && mounted) {
-        _scannerController.start();
+        try {
+          await _scannerController.start();
+        } catch (e) {
+          log('Error restarting scanner: $e');
+        }
       }
       return;
     }
@@ -325,7 +379,11 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
         color: AppColors.errorColor,
       );
       if (_showScanner && mounted) {
-        _scannerController.start();
+        try {
+          await _scannerController.start();
+        } catch (e) {
+          log('Error restarting scanner: $e');
+        }
       }
       return;
     }
@@ -381,6 +439,13 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
             iconData: Icons.error_outline_rounded,
             color: AppColors.errorColor,
           );
+          if (_showScanner && mounted) {
+            try {
+              await _scannerController.start();
+            } catch (e) {
+              log('Error restarting scanner: $e');
+            }
+          }
           return;
         }
 
@@ -394,7 +459,11 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
           color: AppColors.errorColor,
         );
         if (_showScanner && mounted) {
-          _scannerController.start();
+          try {
+            await _scannerController.start();
+          } catch (e) {
+            log('Error restarting scanner: $e');
+          }
         }
       }
     } catch (e) {
@@ -416,30 +485,48 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
         color: AppColors.errorColor,
       );
       if (_showScanner && mounted) {
-        _scannerController.start();
+        try {
+          await _scannerController.start();
+        } catch (scannerError) {
+          log('Error restarting scanner: $scannerError');
+        }
       }
     }
   }
 
   void _submitAndShowFeedback(Plan selectedPlan) {
-    final notifier = ref.read(createRentOrderViewModelProvider.notifier);
-    notifier.resetState();
+    try {
+      final notifier = ref.read(createRentOrderViewModelProvider.notifier);
+      notifier.resetState();
 
-    notifier.submitCreateRentOrder(
-      deviceId: _deviceIdController.text.trim(),
-      callbackURL: _callbackURLController.text.trim(),
-      selectedPlan: selectedPlan,
-    );
+      notifier.submitCreateRentOrder(
+        deviceId: _deviceIdController.text.trim(),
+        callbackURL: _callbackURLController.text.trim(),
+        selectedPlan: selectedPlan,
+      );
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const OrderFeedbackDialog(),
-    ).then((_) {
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const OrderFeedbackDialog(),
+      ).then((_) {
+        if (_showScanner && mounted) {
+          _scannerController.start();
+        }
+      }).catchError((error) {
+        log('Dialog error: $error');
+        if (_showScanner && mounted) {
+          _scannerController.start();
+        }
+      });
+    } catch (e) {
+      log('Error in _submitAndShowFeedback: $e');
       if (_showScanner && mounted) {
         _scannerController.start();
       }
-    });
+    }
   }
 
   void _handleSubmit() async {
