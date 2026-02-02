@@ -109,11 +109,11 @@ class RentedPowerBankService {
           .doc(tradeNo)
           .set(rentData, SetOptions(merge: false))
           .timeout(
-            const Duration(seconds: 15),
-            onTimeout: () {
-              throw TimeoutException('Firestore write operation timed out');
-            },
-          );
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw TimeoutException('Firestore write operation timed out');
+        },
+      );
 
       log('✅ Successfully saved rent record to Firestore for user: $userId, tradeNo: $tradeNo');
     } on FirebaseException catch (e) {
