@@ -1,6 +1,7 @@
 // File: lib/features/chargenow_devices/create_rent_order/service/rented_power_bank_service.dart
 
 import 'dart:developer';
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,7 +39,16 @@ class RentedPowerBankService {
       String userName = currentUser.displayName ?? 'User';
 
       try {
-        final userDoc = await _firestore.collection('users').doc(userId).get();
+        // Add timeout to Firestore fetch to prevent hanging
+        final userDocFuture = _firestore.collection('users').doc(userId).get();
+        final userDoc = await userDocFuture.timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            log('⚠️ Firestore user fetch timed out, using Firebase Auth data');
+            throw TimeoutException('User profile fetch timeout');
+          },
+        );
+
         if (userDoc.exists) {
           final userData = userDoc.data() as Map<String, dynamic>;
           // Get phone number from Firestore (more reliable for phone auth users)
@@ -47,6 +57,8 @@ class RentedPowerBankService {
           userName = userData['fullName'] ?? userData['firstName'] ?? userName;
           log('✅ Fetched user info from Firestore: phone=$userPhone, name=$userName');
         }
+      } on TimeoutException {
+        log('⚠️ Firestore fetch timeout, using Firebase Auth data as fallback');
       } catch (e) {
         log('⚠️ Could not fetch user profile from Firestore: $e');
         log('Using Firebase Auth data as fallback');
@@ -91,10 +103,17 @@ class RentedPowerBankService {
       log('Data: $rentData');
 
       // Save to Firestore with tradeNo as document ID
+      // Add timeout to prevent hanging on slow networks
       await _firestore
           .collection('rented_power_banks')
           .doc(tradeNo)
-          .set(rentData, SetOptions(merge: false));
+          .set(rentData, SetOptions(merge: false))
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () {
+              throw TimeoutException('Firestore write operation timed out');
+            },
+          );
 
       log('✅ Successfully saved rent record to Firestore for user: $userId, tradeNo: $tradeNo');
     } on FirebaseException catch (e) {
