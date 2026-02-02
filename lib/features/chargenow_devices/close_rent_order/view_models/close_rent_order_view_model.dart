@@ -78,12 +78,12 @@ class CloseRentOrderViewModel extends StateNotifier<CloseRentOrderState> {
                       .doc(currentUser.uid)
                       .get()
                       .timeout(
-                        const Duration(seconds: 10),
-                        onTimeout: () {
-                          log('⚠️ Firestore fetch timeout');
-                          throw TimeoutException('Firestore fetch timeout');
-                        },
-                      );
+                    const Duration(seconds: 10),
+                    onTimeout: () {
+                      log('⚠️ Firestore fetch timeout');
+                      throw TimeoutException('Firestore fetch timeout');
+                    },
+                  );
 
                   if (userDoc.exists) {
                     final userData = userDoc.data() as Map<String, dynamic>;

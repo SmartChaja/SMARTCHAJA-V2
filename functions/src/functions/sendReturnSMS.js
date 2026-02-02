@@ -1,5 +1,4 @@
 const functions = require("firebase-functions/v2");
-const admin = require("firebase-admin");
 const axios = require("axios");
 
 // Beem Africa SMS API Configuration
@@ -116,9 +115,6 @@ exports.sendReturnSMSOnStatusChange = functions.firestore.onDocumentUpdated(
 
       // Get phone number from rental record
       const phoneNumber = afterData.userPhoneNumber || "";
-      const userName = afterData.userName || "User";
-      const deviceId = afterData.deviceId || "Device";
-      const tradeNo = afterData.tradeNo || "";
 
       if (!phoneNumber || phoneNumber.trim().isEmpty) {
         console.warn(
@@ -131,7 +127,8 @@ exports.sendReturnSMSOnStatusChange = functions.firestore.onDocumentUpdated(
       }
 
       const message =
-        "Power bank returned successfully. Thank you for choosing SmartChaja. We appreciate you and look forward to serving you again.";
+        "Power bank returned successfully. Thank you for choosing SmartChaja. " +
+        "We appreciate you and look forward to serving you again.";
 
       console.log(`📱 Sending return SMS to: ${phoneNumber}`);
       const smsSent = await sendSMS(phoneNumber, message);
@@ -150,10 +147,11 @@ exports.sendReturnSMSOnStatusChange = functions.firestore.onDocumentUpdated(
           processed: true,
           smsSent: true,
           phoneNumber: phoneNumber,
-          tradeNo: tradeNo,
         };
       } else {
-        console.error(`❌ Failed to send return SMS for rental: ${event.params.docId}`);
+        console.error(
+          `❌ Failed to send return SMS for rental: ${event.params.docId}`,
+        );
         return {
           processed: true,
           smsSent: false,
