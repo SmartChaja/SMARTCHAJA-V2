@@ -33,6 +33,25 @@ class RentedPowerBankService {
       final String userId = currentUser.uid;
       log('Saving rent record for authenticated user: $userId');
 
+      // Fetch user profile from Firestore to get phone and name (more reliable than Firebase Auth)
+      String userPhone = currentUser.phoneNumber ?? '';
+      String userName = currentUser.displayName ?? 'User';
+
+      try {
+        final userDoc = await _firestore.collection('users').doc(userId).get();
+        if (userDoc.exists) {
+          final userData = userDoc.data() as Map<String, dynamic>;
+          // Get phone number from Firestore (more reliable for phone auth users)
+          userPhone = userData['phoneNumber'] ?? userPhone;
+          // Get full name from Firestore
+          userName = userData['fullName'] ?? userData['firstName'] ?? userName;
+          log('✅ Fetched user info from Firestore: phone=$userPhone, name=$userName');
+        }
+      } catch (e) {
+        log('⚠️ Could not fetch user profile from Firestore: $e');
+        log('Using Firebase Auth data as fallback');
+      }
+
       // Calculate rental period
       final DateTime rentStartDate = DateTime.now();
       final DateTime rentEndDate =
@@ -62,8 +81,8 @@ class RentedPowerBankService {
         'status': 'rented',
         'reminderSMSSent': false, // For reminder SMS tracking
         'lastPenaltyAt': Timestamp.fromDate(rentEndDate),
-        'userPhoneNumber': currentUser.phoneNumber ?? '', // For SMS
-        'userName': currentUser.displayName ?? 'User', // For SMS
+        'userPhoneNumber': userPhone, // For SMS (from Firestore, more reliable)
+        'userName': userName, // For SMS (from Firestore, more reliable)
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
