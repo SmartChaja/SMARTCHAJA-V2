@@ -8,6 +8,7 @@ import 'package:smart_chaja/features/chargenow_devices/close_rent_order/view_mod
 import 'package:smart_chaja/features/chargenow_devices/create_rent_order/service/rented_power_bank_service.dart';
 import 'package:smart_chaja/authentication/beemafrica_service.dart/beem_sms_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 void debugPrintSMS(String message) {
   if (kDebugMode) {
@@ -57,15 +58,43 @@ class CloseRentOrderViewModel extends StateNotifier<CloseRentOrderState> {
               // Try to get phone number from multiple sources
               String userPhone = '';
 
-              // First try: Firebase phone number
-              if (currentUser.phoneNumber != null &&
-                  currentUser.phoneNumber!.isNotEmpty) {
-                userPhone = currentUser.phoneNumber!;
-              }
-              // Second try: Rental details have user phone
-              else if (rentalDetails['userPhoneNumber'] != null &&
+              // First try: Rental details have user phone (preferred - stored at rental time)
+              if (rentalDetails['userPhoneNumber'] != null &&
                   rentalDetails['userPhoneNumber'].toString().isNotEmpty) {
                 userPhone = rentalDetails['userPhoneNumber'].toString();
+                log('✅ Phone from rental record: $userPhone');
+              }
+              // Second try: Firebase phone number
+              else if (currentUser.phoneNumber != null &&
+                  currentUser.phoneNumber!.isNotEmpty) {
+                userPhone = currentUser.phoneNumber!;
+                log('✅ Phone from Firebase Auth: $userPhone');
+              }
+              // Third try: Fetch from users collection (fallback for old rentals)
+              else {
+                try {
+                  final userDoc = await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(currentUser.uid)
+                      .get()
+                      .timeout(
+                        const Duration(seconds: 10),
+                        onTimeout: () {
+                          log('⚠️ Firestore fetch timeout');
+                          throw TimeoutException('Firestore fetch timeout');
+                        },
+                      );
+
+                  if (userDoc.exists) {
+                    final userData = userDoc.data() as Map<String, dynamic>;
+                    userPhone = userData['phoneNumber'] ?? '';
+                    if (userPhone.isNotEmpty) {
+                      log('✅ Phone from Firestore users collection: $userPhone');
+                    }
+                  }
+                } catch (e) {
+                  log('⚠️ Could not fetch phone from Firestore: $e');
+                }
               }
 
               final userName = rentalDetails['userName'] ??
