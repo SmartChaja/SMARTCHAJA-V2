@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lottie/lottie.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:smart_chaja/app_constants/app_constants.dart';
 import 'package:smart_chaja/authentication/register/repositories/auth_repository.dart';
 import 'package:smart_chaja/features/chargenow_devices/plan/provider/plan_provider.dart';
@@ -45,8 +46,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     }
     
     if (!mounted) return;
-    debugPrint('🚀 Navigating to Welcome Screen');
-    _navigateTo('/welcome');
+    
+    // Check if user is already logged in
+    final currentUser = FirebaseAuth.instance.currentUser;
+    
+    if (currentUser != null) {
+      debugPrint('✅ User already logged in: ${currentUser.uid}');
+      _navigateTo('/home');
+    } else {
+      debugPrint('🚀 No user logged in, navigating to Welcome Screen');
+      _navigateTo('/welcome');
+    }
   }
 
   void _navigateTo(String route) {
