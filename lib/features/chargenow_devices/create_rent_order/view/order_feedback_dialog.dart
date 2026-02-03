@@ -5,7 +5,9 @@ import 'package:smart_chaja/features/chargenow_devices/create_rent_order/provide
 import 'package:smart_chaja/features/chargenow_devices/create_rent_order/view_model/create_rent_order_view_model.dart';
 
 class OrderFeedbackDialog extends ConsumerWidget {
-  const OrderFeedbackDialog({super.key});
+  final VoidCallback? onOrderSuccess;
+  
+  const OrderFeedbackDialog({super.key, this.onOrderSuccess});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -79,7 +81,10 @@ class OrderFeedbackDialog extends ConsumerWidget {
         _buildDetailRow("API Code:", orderResponse.code.toString()),
         const SizedBox(height: AppSpacing.large),
         ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            Navigator.of(context).pop();
+            onOrderSuccess?.call();
+          },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primaryColor,
             foregroundColor: Colors.white,
