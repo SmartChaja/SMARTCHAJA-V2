@@ -36,8 +36,8 @@ class _ChargeNowDevicesScreenState
   String _searchQuery = '';
 
   static const CameraPosition _kInitialCameraPosition = CameraPosition(
-    target: LatLng(-6.3690, 34.8888),
-    zoom: 6.0,
+    target: LatLng(-6.8, 39.3), // Dar es Salaam - charging station hub
+    zoom: 13.0,
   );
 
   Set<Marker> _markers = {};
