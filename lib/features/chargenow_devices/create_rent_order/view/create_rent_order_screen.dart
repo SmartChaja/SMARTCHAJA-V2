@@ -510,9 +510,13 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (_) => const OrderFeedbackDialog(),
+        builder: (_) => OrderFeedbackDialog(
+          onOrderSuccess: _onOrderSuccess,
+        ),
       ).then((_) {
-        if (_showScanner && mounted) {
+        // Only restart scanner if order failed or user retried
+        final state = ref.read(createRentOrderViewModelProvider);
+        if (state.opStatus != CreateRentOrderStatus.success && _showScanner && mounted) {
           _scannerController.start();
         }
       }).catchError((error) {
@@ -526,6 +530,18 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
       if (_showScanner && mounted) {
         _scannerController.start();
       }
+    }
+  }
+
+  void _onOrderSuccess() {
+    // Stop the scanner
+    if (_showScanner) {
+      _scannerController.stop();
+    }
+    
+    // Navigate to map page
+    if (mounted) {
+      Navigator.of(context).pushReplacementNamed('/map');
     }
   }
 
