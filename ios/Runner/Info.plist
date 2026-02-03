@@ -56,9 +56,9 @@
     <key>NSCameraUsageDescription</key>
     <string>This app needs access to your camera to allow you to take a profile picture and capture images.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>SmartChaja uses your location to display your current position on the map and help you find nearby charging stations for your device.</string>
+	<string>SmartChaja can use your location to help you find nearby charging stations. This is optional and the app works fine without it.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>SmartChaja uses your location to display your current position on the map and help you find nearby charging stations for your device.</string>
+	<string>SmartChaja can use your location to help you find nearby charging stations. This is optional and the app works fine without it.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
     <string>This app requires access to your photo library to save images.</string>
 

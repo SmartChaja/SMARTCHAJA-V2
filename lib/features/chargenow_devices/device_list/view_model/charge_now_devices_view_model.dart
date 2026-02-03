@@ -46,55 +46,63 @@ class ChargeNowDevicesViewModel extends StateNotifier<ChargeNowDevicesState> {
   ChargeNowDevicesViewModel(this._service)
       : super(ChargeNowDevicesState(status: ChargeNowDeviceStatus.initial));
 
-  Future<Position> _getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+  /// Get current location if available, returns null if location is disabled or denied
+  Future<Position?> _getCurrentLocation() async {
+    try {
+      bool serviceEnabled;
+      LocationPermission permission;
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      throw Exception('Location services are disabled. Please enable them in your device settings.');
-    }
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        throw Exception('Location permissions are denied. Please grant permission to proceed.');
+      // Check if location services are enabled
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        print('⚠️ Location services are disabled. Using default location.');
+        return null; // Allow app to continue without location
       }
-    }
-    
-    if (permission == LocationPermission.deniedForever) {
-      throw Exception('Location permissions are permanently denied. Please enable them in app settings.');
-    } 
 
-    late LocationSettings locationSettings;
-    const accuracy = LocationAccuracy.high; // Define desired accuracy
+      // Check permission status
+      permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        // Request permission (but don't fail if denied)
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          print('⚠️ Location permissions are denied. Using default location.');
+          return null; // Allow app to continue without location
+        }
+      }
+      
+      if (permission == LocationPermission.deniedForever) {
+        print('⚠️ Location permissions are permanently denied. Using default location.');
+        return null; // Allow app to continue without location
+      }
 
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      locationSettings = AndroidSettings(
-        accuracy: accuracy,
-        distanceFilter: 10, // Optional: meters
-        intervalDuration: const Duration(seconds: 1), // More relevant for streams/foreground
-      );
-    } else if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
-      locationSettings = AppleSettings(
-        accuracy: accuracy,
-        activityType: ActivityType.other, // Specify activity type
-        distanceFilter: 10, // Optional: meters
-     
-        // showBackgroundLocationIndicator: false, // Optional: if running in background
-      );
-    } else {
-      // Generic settings for web or other platforms
-      locationSettings = const LocationSettings(
-        accuracy: accuracy,
-        distanceFilter: 10, // Optional
-        // timeLimit: Duration(seconds: 10), // Optional: to timeout the request
-      );
+      late LocationSettings locationSettings;
+      const accuracy = LocationAccuracy.high;
+
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        locationSettings = AndroidSettings(
+          accuracy: accuracy,
+          distanceFilter: 10,
+          intervalDuration: const Duration(seconds: 1),
+        );
+      } else if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
+        locationSettings = AppleSettings(
+          accuracy: accuracy,
+          activityType: ActivityType.other,
+          distanceFilter: 10,
+        );
+      } else {
+        locationSettings = const LocationSettings(
+          accuracy: accuracy,
+          distanceFilter: 10,
+        );
+      }
+      
+      print("✅ Requesting current position with settings: Accuracy ${locationSettings.accuracy}");
+      return await Geolocator.getCurrentPosition(locationSettings: locationSettings);
+    } catch (e) {
+      print('⚠️ Error getting location: $e. Using default location.');
+      return null; // Gracefully handle any location errors
     }
-    
-    print("Requesting current position with settings: Accuracy ${locationSettings.accuracy}");
-    return await Geolocator.getCurrentPosition(locationSettings: locationSettings);
   }
 
   // fetchDevicesNearCurrentLocation and resetState methods remain the same
@@ -110,14 +118,24 @@ class ChargeNowDevicesViewModel extends StateNotifier<ChargeNowDevicesState> {
 
     try {
       state = state.copyWith(status: ChargeNowDeviceStatus.fetchingLocation);
-      final Position position = await _getCurrentLocation();
-      state = state.copyWith(status: ChargeNowDeviceStatus.loading, lastUsedPosition: position);
+      
+      // Try to get current location, but allow null (location disabled/denied)
+      final Position? position = await _getCurrentLocation();
+      
+      // Use provided position or fallback to default location (Dar es Salaam - charging hub)
+      final double latitude = position?.latitude ?? -6.8; // Dar es Salaam
+      final double longitude = position?.longitude ?? 39.3; // Dar es Salaam
+      
+      state = state.copyWith(
+        status: ChargeNowDeviceStatus.loading, 
+        lastUsedPosition: position,
+      );
 
       final params = ChargeNowDeviceParams(
         coordType: coordType,
         zoomLevel: zoomLevel,
-        lat: position.latitude.toString(),
-        lng: position.longitude.toString(),
+        lat: latitude.toString(),
+        lng: longitude.toString(),
         showPrice: showPrice,
       );
 
