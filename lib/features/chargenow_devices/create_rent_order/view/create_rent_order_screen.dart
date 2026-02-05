@@ -71,7 +71,22 @@ class _CreateRentOrderScreenState extends ConsumerState<CreateRentOrderScreen>
         _proceedToPlanSelection(_deviceIdController.text.trim());
       });
     } else {
-      _scannerController.start();
+      // Delay scanner startup to prevent initialization crashes
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          _scannerController.start();
+        } catch (e) {
+          log('⚠️ Scanner initialization failed: $e');
+          if (mounted) {
+            TopSnackBar.show(
+              context,
+              "Camera access denied. Please enable camera permissions.",
+              iconData: Icons.camera,
+              color: AppColors.warningColor,
+            );
+          }
+        }
+      });
     }
 
     _callbackURLController.text = ChargeNowApiConfig.rentOrderCallbackUrl;
