@@ -1,4 +1,29 @@
 {
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/app",
+        "function": "appRedirect",
+        "region": "us-central1"
+      },
+      {
+        "source": "/qr",
+        "function": "generateQRCode",
+        "region": "us-central1"
+      },
+      {
+        "source": "/app/**",
+        "function": "appRedirect",
+        "region": "us-central1"
+      }
+    ]
+  },
   "flutter": {
     "platforms": {
       "android": {

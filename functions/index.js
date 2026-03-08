@@ -32,3 +32,9 @@ exports.sendReturnSMSOnStatusChange = require("./src/functions/sendReturnSMS")
 const otpFunctions = require("./src/functions/verifyOTPAndGetToken");
 exports.verifyOTPAndGetToken = otpFunctions.verifyOTPAndGetToken;
 exports.sendOTP = otpFunctions.sendOTP;
+
+// Export universal app-download redirect (Android → Play Store, iOS → App Store)
+exports.appRedirect = require("./src/functions/appRedirect").appRedirect;
+
+// Export QR code generator (returns a PNG image of the app download link)
+exports.generateQRCode = require("./src/functions/generateQRCode").generateQRCode;
