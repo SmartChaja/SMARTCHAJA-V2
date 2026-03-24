@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_chaja/features/chargenow_devices/payment/azam/model/payment_model.dart';
 import 'package:smart_chaja/features/chargenow_devices/payment/azam/provider/payment_providers.dart';
 import 'package:smart_chaja/features/chargenow_devices/payment/azam/response/payment_result.dart';
+import 'package:smart_chaja/features/chargenow_devices/payment/vodacom/provider/vodacom_payment_providers.dart';
 import 'package:smart_chaja/features/chargenow_devices/payment/screen/mobile_widgets/dialog_utils.dart';
 import 'package:smart_chaja/features/chargenow_devices/payment/screen/mobile_widgets/mobile_number_validator.dart';
 
@@ -98,10 +99,57 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
   }
 
   void _submitPayment() {
-  if (_formKey.currentState!.validate()) {
-    final mobileNumber = _mobileNumberController.text;
-    final amount = _amountController.text;
+    if (_formKey.currentState!.validate()) {
+      final mobileNumber = _mobileNumberController.text;
+      final amount = _amountController.text;
 
+      // Route to appropriate payment provider
+      if (_selectedProvider == 'Mpesa') {
+        _submitVodacomPayment(mobileNumber, amount);
+      } else {
+        _submitAzamPayment(mobileNumber, amount);
+      }
+    }
+  }
+
+  /// Handles Vodacom/M-Pesa C2B payment (Tanzania)
+  void _submitVodacomPayment(String mobileNumber, String amount) {
+    // Validate and format for Vodacom Tanzania
+    if (mobileNumber.isEmpty) {
+      showInvalidMobileNumberDialog(context);
+      return;
+    }
+
+    // Vodacom Tanzania requires 12-14 digit MSISDN format
+    // Normalize the input to Vodacom format
+    String normalizedNumber = mobileNumber;
+
+    // If it starts with 0, replace with 255 (Tanzania country code)
+    if (mobileNumber.startsWith('0')) {
+      normalizedNumber = '255${mobileNumber.substring(1)}';
+    } else if (!mobileNumber.startsWith('255')) {
+      normalizedNumber = '255$mobileNumber';
+    }
+
+    debugPrint(
+        'Vodacom Tanzania payment - Original: $mobileNumber, Normalized: $normalizedNumber');
+
+    // Generate unique transaction reference using timestamp
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final transactionRef = 'TXN${timestamp.toString().substring(0, 10)}';
+
+    // Initiate Vodacom C2B payment
+    ref.read(vodacomPaymentViewModelProvider.notifier).performC2BPayment(
+          amount: amount,
+          customerMsisdn: normalizedNumber,
+          serviceProviderCode: 'SMARTCHAJA',
+          transactionReference: transactionRef,
+          purchasedItemsDesc: 'Mobile Wallet Top-up',
+        );
+  }
+
+  /// Handles Azam payment (for Tanzania/other providers)
+  void _submitAzamPayment(String mobileNumber, String amount) {
     // Validate the mobile number format
     if (!MobileNumberValidator.validateMobileNumber(
         mobileNumber, _selectedProvider)) {
@@ -128,10 +176,10 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
           provider: _selectedProvider,
         );
   }
-}
 
   @override
   Widget build(BuildContext context) {
+    // Listen to Azam payment state
     ref.listen<AsyncValue<PaymentResult?>>(paymentViewModelProvider,
         (previous, next) {
       next.when(
@@ -172,7 +220,51 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
       );
     });
 
+    // Listen to Vodacom payment state
+    ref.listen(vodacomPaymentViewModelProvider, (previous, next) {
+      next.when(
+        data: (result) {
+          if (result != null) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PaymentResultScreen(
+                  isSuccess: result.isSuccess,
+                  title: result.isSuccess
+                      ? 'Payment Successful'
+                      : 'Payment Failed',
+                  message: result.isSuccess
+                      ? 'Your deposit has been successfully processed.'
+                      : result.message,
+                  transactionId: result.transactionId,
+                  amount: result.amount,
+                  provider: result.provider,
+                ),
+              ),
+            );
+          }
+        },
+        loading: () {},
+        error: (error, stack) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PaymentResultScreen(
+                isSuccess: false,
+                title: 'Payment Failed',
+                message: 'An unexpected error occurred. Please try again.',
+              ),
+            ),
+          );
+        },
+      );
+    });
+
     final paymentState = ref.watch(paymentViewModelProvider);
+    final vodacomState = ref.watch(vodacomPaymentViewModelProvider);
+
+    // Show loading if either payment method is processing
+    final isLoading = paymentState.isLoading || vodacomState.isLoading;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -197,7 +289,7 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
                         const SizedBox(height: 20),
                         _buildAmountField(),
                         const SizedBox(height: 28),
-                        _buildSubmitButton(paymentState),
+                        _buildSubmitButton(isLoading),
                         const SizedBox(height: 24),
                         _buildInfoCard(),
                         const SizedBox(height: 32),
@@ -540,11 +632,11 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
     );
   }
 
-  Widget _buildSubmitButton(AsyncValue<PaymentResult?> paymentState) {
+  Widget _buildSubmitButton(bool isLoading) {
     return SizedBox(
       width: double.infinity,
       height: 56,
-      child: paymentState.isLoading
+      child: isLoading
           ? Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
