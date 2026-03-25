@@ -153,6 +153,7 @@ class VodacomPaymentService {
     try {
       // Validate inputs
       if (amount.isEmpty || customerMsisdn.isEmpty) {
+        print('[VodacomAPI] ✗ Invalid amount or customer MSISDN');
         return VodacomPaymentResult.error('Invalid amount or customer MSISDN');
       }
 
@@ -168,23 +169,35 @@ class VodacomPaymentService {
         'Origin': origin,
       };
 
-      final thirdPartyConversationId = const Uuid().v4();
-
       final body = {
         'input_Amount': amount,
         'input_Country': VodacomConfig.country,
         'input_Currency': VodacomConfig.currency,
-        'input_CustomerMSISDN': customerMsisdn,
+        // For sandbox, only remove '255' prefix if present, not all occurrences
+        'input_CustomerMSISDN': sandbox
+            ? (customerMsisdn.startsWith('255')
+                ? customerMsisdn.substring(3)
+                : customerMsisdn)
+            : customerMsisdn,
         // Always use '000000' for sandbox testing
         'input_ServiceProviderCode':
             sandbox ? '000000' : (serviceProviderCode ?? ''),
-        'input_ThirdPartyConversationID': thirdPartyConversationId,
+        // Use test value for sandbox, UUID for production
+        'input_ThirdPartyConversationID':
+            sandbox ? 'test1234567891' : const Uuid().v4(),
         'input_TransactionReference': transactionReference,
         'input_PurchasedItemsDesc': purchasedItemsDesc,
       };
 
       final baseUrl =
           '$_baseUrl/${VodacomConfig.market}/c2bPayment/singleStage/';
+
+      // Debug: Print request details
+      print('[VodacomAPI] C2B Payment Request URL: $baseUrl');
+      print('[VodacomAPI] C2B Payment Headers:');
+      headers.forEach((k, v) =>
+          print('  $k: ${k == 'Authorization' ? '<encrypted_key>' : v}'));
+      print('[VodacomAPI] C2B Payment Request Body: ${jsonEncode(body)}');
 
       // Initialize Dio with timeout and disable status code validation
       final dio = Dio();
@@ -199,22 +212,46 @@ class VodacomPaymentService {
         options: Options(headers: headers),
       );
 
+      print('[VodacomAPI] C2B Payment Response Status: ${response.statusCode}');
+      print('[VodacomAPI] C2B Payment Response Body: ${response.data}');
+
       if (response.statusCode == 201 || response.statusCode == 200) {
         final responseData = response.data is String
             ? jsonDecode(response.data) as Map<String, dynamic>
             : response.data as Map<String, dynamic>;
         final result = VodacomPaymentResult.fromResponse(responseData);
+        print('[VodacomAPI] ✓ C2B Payment Success: $responseData');
         return result.copyWith(
             amount: amount, currency: VodacomConfig.currency);
       } else {
-        final responseData = response.data is String
-            ? jsonDecode(response.data) as Map<String, dynamic>
-            : response.data as Map<String, dynamic>;
-        final errorDesc =
-            responseData['output_ResponseDesc'] ?? 'Payment failed';
+        // Try to extract as much error info as possible
+        Map<String, dynamic>? responseData;
+        String errorDesc = 'Payment failed';
+        try {
+          if (response.data is String) {
+            responseData = jsonDecode(response.data) as Map<String, dynamic>;
+          } else if (response.data is Map) {
+            responseData = response.data as Map<String, dynamic>;
+          }
+          if (responseData != null) {
+            errorDesc = responseData['output_ResponseDesc'] ??
+                responseData['error'] ??
+                responseData.toString();
+            print('[VodacomAPI] ✗ C2B Payment Error: $errorDesc');
+            print('[VodacomAPI] ✗ Full Error Response: $responseData');
+          } else {
+            print(
+                '[VodacomAPI] ✗ C2B Payment Error: Unable to parse error response');
+          }
+        } catch (e) {
+          print(
+              '[VodacomAPI] ✗ C2B Payment Error: Exception parsing error response: $e');
+        }
         return VodacomPaymentResult.error(errorDesc);
       }
-    } catch (e) {
+    } catch (e, stack) {
+      print('[VodacomAPI] ✗ C2B payment exception: $e');
+      print('[VodacomAPI] ✗ Stack trace: $stack');
       return VodacomPaymentResult.error('C2B payment error: $e');
     }
   }

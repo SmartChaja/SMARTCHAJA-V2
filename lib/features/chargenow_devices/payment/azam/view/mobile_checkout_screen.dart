@@ -114,37 +114,34 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
 
   /// Handles Vodacom/M-Pesa C2B payment (Tanzania)
   void _submitVodacomPayment(String mobileNumber, String amount) {
-    // Validate and format for Vodacom Tanzania
-    if (mobileNumber.isEmpty) {
-      showInvalidMobileNumberDialog(context);
-      return;
-    }
-
-    // Vodacom Tanzania requires 12-14 digit MSISDN format
-    // Normalize the input to Vodacom format
+    // Normalize the mobile number for Vodacom Tanzania
     String normalizedNumber = mobileNumber;
-
-    // If it starts with 0, replace with 255 (Tanzania country code)
-    if (mobileNumber.startsWith('0')) {
+    if (mobileNumber.length == 10 && mobileNumber.startsWith('0')) {
       normalizedNumber = '255${mobileNumber.substring(1)}';
-    } else if (!mobileNumber.startsWith('255')) {
+    } else if (!mobileNumber.startsWith('255') && mobileNumber.length < 12) {
       normalizedNumber = '255$mobileNumber';
     }
 
-    debugPrint(
-        'Vodacom Tanzania payment - Original: $mobileNumber, Normalized: $normalizedNumber');
+    // Generate unique transaction reference (max 20 chars)
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final random = (1000 + (DateTime.now().microsecond % 9000)).toString();
+    // Use last 8 digits of timestamp + 4 random digits, prefix with 'TXN' (max 15 chars)
+    final tsPart = now.toString().substring(now.toString().length - 8);
+    final transactionRef = 'TXN${tsPart}${random}';
+    // If for any reason it's longer than 20, truncate
+    final safeTransactionRef = transactionRef.length > 20
+        ? transactionRef.substring(0, 20)
+        : transactionRef;
 
-    // Generate unique transaction reference using timestamp
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final transactionRef = 'TXN${timestamp.toString().substring(0, 10)}';
+    // Use 'mobile wallet payment' for sandbox, 'Mobile Wallet Top-up' for production
+    final purchasedItemsDesc = 'mobile wallet payment';
 
-    // Initiate Vodacom C2B payment
     ref.read(vodacomPaymentViewModelProvider.notifier).performC2BPayment(
           amount: amount,
           customerMsisdn: normalizedNumber,
-          serviceProviderCode: 'SMARTCHAJA',
-          transactionReference: transactionRef,
-          purchasedItemsDesc: 'Mobile Wallet Top-up',
+          serviceProviderCode: '000000', // For sandbox, must be '000000'
+          transactionReference: safeTransactionRef,
+          purchasedItemsDesc: purchasedItemsDesc,
         );
   }
 
