@@ -42,7 +42,7 @@ class VodacomPaymentViewModel
         print(
             '[VodacomPaymentViewModel] ⏳ Waiting 30 seconds for session ID to become active in M-Pesa system...');
         print(
-            '[VodacomPaymentViewModel] Generated SessionID: ${_cachedSessionKey?.substring(0, 20)}...');
+            '[VodacomPaymentViewModel] Generated SessionID: ${_cachedSessionKey}');
 
         // Wait 30 seconds as per M-Pesa API documentation
         await Future.delayed(const Duration(seconds: 30));
