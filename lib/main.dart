@@ -39,6 +39,7 @@ import 'package:smart_chaja/localization/language_provider.dart';
 import 'package:smart_chaja/session/app_provider_observer.dart';
 import 'firebase_options.dart';
 import 'package:upgrader/upgrader.dart';
+import 'package:smart_chaja/features/chargenow_devices/payment/vodacom/service/vodacom_secure_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,6 +58,9 @@ Future<void> main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     debugPrint('✅ Firebase initialized');
+
+    // Initialize Vodacom secure credentials
+    await _initializeVodacomSecurityConfig();
 
     // Configure Firebase Auth settings
     await _configureFirebaseAuth();
@@ -104,6 +108,19 @@ Future<void> main() async {
   }
 }
 
+/// Initialize Vodacom secure configuration for API credentials
+/// Fetches credentials from Firebase Remote Config at startup
+Future<void> _initializeVodacomSecurityConfig() async {
+  try {
+    final secureConfig = VodacomSecureConfig();
+    await secureConfig.initialize();
+    debugPrint('✅ Vodacom secure credentials initialized');
+  } catch (e) {
+    debugPrint('⚠️ Warning: Vodacom security config initialization failed: $e');
+    debugPrint('   Fallback to environment variables will be used');
+  }
+}
+
 Future<void> _configureFirebaseAuth() async {
   try {
     final auth = FirebaseAuth.instance;
@@ -145,14 +162,14 @@ Future<void> _activateAppCheck() async {
     //   debugPrint(
     //       '⚠️ Remember: Remove kDebugMode check before Play Store release!');
     // } else {
-      // Production build - Enable strict device verification
-      await FirebaseAppCheck.instance.activate(
-        androidProvider: AndroidProvider.playIntegrity,
-        appleProvider: AppleProvider.appAttestWithDeviceCheckFallback,
-        webProvider: ReCaptchaV3Provider(
-          dotenv.env['RECAPTCHA_V3_SITE_KEY'] ?? 'your-recaptcha-v3-site-key',
-        ),
-      );
+    // Production build - Enable strict device verification
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: AndroidProvider.playIntegrity,
+      appleProvider: AppleProvider.appAttestWithDeviceCheckFallback,
+      webProvider: ReCaptchaV3Provider(
+        dotenv.env['RECAPTCHA_V3_SITE_KEY'] ?? 'your-recaptcha-v3-site-key',
+      ),
+    );
     //   debugPrint(
     //       '✅ Firebase App Check activated (Production mode - STRICT VERIFICATION ENABLED)');
     // }

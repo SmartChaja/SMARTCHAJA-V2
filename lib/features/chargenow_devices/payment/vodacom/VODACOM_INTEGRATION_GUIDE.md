@@ -27,10 +27,12 @@ lib/features/chargenow_devices/payment/vodacom/
 ### 1. Update Dependencies
 
 The following packages have been added to `pubspec.yaml`:
+
 - `pointycastle: ^3.8.0` - For RSA encryption
 - `crypto: ^3.0.3` - For cryptographic operations
 
 Run the following command to fetch the new dependencies:
+
 ```bash
 flutter pub get
 ```
@@ -38,20 +40,32 @@ flutter pub get
 ### 2. API Configuration
 
 The API key and configuration are stored in:
-- **File**: `lib/features/chargenow_devices/payment/vodacom/provider/vodacom_payment_providers.dart`
-- **API Key**: `PnUOd2XmPPD7zVWMyPx3SZuOMmAYAMrX` (Sandbox)
-- **Environment**: Currently set to sandbox (`sandbox: true`)
 
-To switch to production, update the `vodacomPaymentServiceProvider`:
+- **File**: `lib/features/chargenow_devices/payment/vodacom/provider/vodacom_payment_providers.dart`
+- **Sandbox API Key**: `BBCFkqwvBIqV3sPXwsGdBGI5m3cM8GMK`
+- **Service Provider Code (Sandbox)**: `000000`
+- **Service Provider Code (Production)**: `944378`
+- **Environment**: Currently set to sandbox (`PRODUCTION_MODE = false`)
+
+#### Switching Environments
+
+**For Sandbox** (Default):
+
 ```dart
-final vodacomPaymentServiceProvider = Provider<VodacomPaymentService>((ref) {
-  return VodacomPaymentService(
-    apiKey: _vodacomApiKey,
-    sandbox: false,  // Set to false for production
-    origin: '*',
-  );
-});
+const bool PRODUCTION_MODE = false;
+const String _vodacomSandboxApiKey = 'BBCFkqwvBIqV3sPXwsGdBGI5m3cM8GMK';
+const String _vodacomSandboxServiceCode = '000000';
 ```
+
+**For Production**:
+
+```dart
+const bool PRODUCTION_MODE = true; // Set to true
+const String _vodacomProductionApiKey = 'YOUR_PRODUCTION_API_KEY'; // Add your key
+const String _vodacomProductionServiceCode = '944378'; // ✓ Organization code
+```
+
+> **⚠️ IMPORTANT**: See [PRODUCTION_MIGRATION.md](PRODUCTION_MIGRATION.md) for complete production migration instructions.
 
 ## How It Works
 
@@ -154,17 +168,18 @@ ref.read(vodacomPaymentViewModelProvider.notifier).queryTransactionStatus(
 
 ### C2B Payment Parameters
 
-| Parameter | Type | Required | Description | Example |
-|-----------|------|----------|-------------|---------|
-| `amount` | String | Yes | Transaction amount | "10.00" |
-| `customerMsisdn` | String | Yes | Customer phone number (12-14 digits) | "254707161122" |
-| `serviceProviderCode` | String | Yes | Service provider shortcode | "ORG001" |
-| `transactionReference` | String | Yes | Customer transaction reference (1-20 chars) | "T12344C" |
-| `purchasedItemsDesc` | String | Yes | Description of items purchased | "Mobile Wallet Top-up" |
+| Parameter              | Type   | Required | Description                                 | Example                |
+| ---------------------- | ------ | -------- | ------------------------------------------- | ---------------------- |
+| `amount`               | String | Yes      | Transaction amount                          | "10.00"                |
+| `customerMsisdn`       | String | Yes      | Customer phone number (12-14 digits)        | "254707161122"         |
+| `serviceProviderCode`  | String | Yes      | Service provider shortcode                  | "ORG001"               |
+| `transactionReference` | String | Yes      | Customer transaction reference (1-20 chars) | "T12344C"              |
+| `purchasedItemsDesc`   | String | Yes      | Description of items purchased              | "Mobile Wallet Top-up" |
 
 ### Response Formats
 
 #### Success Response
+
 ```json
 {
   "output_ResponseCode": "INS-0",
@@ -176,6 +191,7 @@ ref.read(vodacomPaymentViewModelProvider.notifier).queryTransactionStatus(
 ```
 
 #### Error Response
+
 ```json
 {
   "output_ResponseCode": "INS-6",
@@ -185,17 +201,17 @@ ref.read(vodacomPaymentViewModelProvider.notifier).queryTransactionStatus(
 
 ## Error Codes
 
-| Code | Description | Action |
-|------|-------------|--------|
-| INS-0 | Request processed successfully | Payment successful |
-| INS-1 | Internal Error | Retry or contact support |
-| INS-6 | Transaction Failed | Check payment details |
-| INS-9 | Request timeout | Retry the transaction |
-| INS-10 | Duplicate Transaction | Check if already processed |
-| INS-13 | Invalid Shortcode | Verify service provider code |
-| INS-15 | Invalid Amount | Check amount format |
-| INS-2006 | Insufficient balance | Inform user to top-up |
-| INS-2051 | MSISDN invalid | Validate phone number |
+| Code     | Description                    | Action                       |
+| -------- | ------------------------------ | ---------------------------- |
+| INS-0    | Request processed successfully | Payment successful           |
+| INS-1    | Internal Error                 | Retry or contact support     |
+| INS-6    | Transaction Failed             | Check payment details        |
+| INS-9    | Request timeout                | Retry the transaction        |
+| INS-10   | Duplicate Transaction          | Check if already processed   |
+| INS-13   | Invalid Shortcode              | Verify service provider code |
+| INS-15   | Invalid Amount                 | Check amount format          |
+| INS-2006 | Insufficient balance           | Inform user to top-up        |
+| INS-2051 | MSISDN invalid                 | Validate phone number        |
 
 ## Security Considerations
 
@@ -224,6 +240,7 @@ ref.read(vodacomPaymentViewModelProvider.notifier).queryTransactionStatus(
 ### Sandbox Testing
 
 For testing in sandbox environment:
+
 1. Use sandbox API key: `PnUOd2XmPPD7zVWMyPx3SZuOMmAYAMrX`
 2. API endpoint: `https://openapi.m-pesa.com/sandbox/ipg/v2/vodafoneGHA/...`
 3. Test phone numbers provided by M-Pesa documentation
@@ -276,6 +293,7 @@ ElevatedButton(
 **Cause**: Invalid API key or network timeout
 
 **Solution**:
+
 - Verify API key in the provider
 - Check internet connection
 - Ensure firewall allows HTTPS on port 443
@@ -285,6 +303,7 @@ ElevatedButton(
 **Cause**: Invalid public key format or malformed input
 
 **Solution**:
+
 - Verify public key hasn't been modified
 - Check plaintext encoding (UTF-8)
 - Ensure plaintext isn't empty
@@ -294,6 +313,7 @@ ElevatedButton(
 **Cause**: Network latency or server overload
 
 **Solution**:
+
 - Implement exponential backoff retry logic
 - Check M-Pesa service status
 - Use query transaction status to verify
@@ -303,6 +323,7 @@ ElevatedButton(
 **Cause**: Same reference used multiple times
 
 **Solution**:
+
 - Generate unique transaction references using UUID
 - Implement transaction deduplication on backend
 
@@ -339,6 +360,7 @@ POST /api/vodacom/webhook
 ```
 
 Your server should:
+
 1. Validate the request signature
 2. Update transaction status in database
 3. Send notification to user
@@ -354,6 +376,7 @@ Your server should:
 ## Version History
 
 ### v1.0.0 (Current)
+
 - Initial Vodacom C2B integration
 - Session key generation and caching
 - C2B single-stage payment
@@ -365,6 +388,7 @@ Your server should:
 ## Contributing
 
 When making changes to Vodacom integration:
+
 1. Follow existing code structure
 2. Update both encryption and API service as needed
 3. Add unit tests for encryption logic

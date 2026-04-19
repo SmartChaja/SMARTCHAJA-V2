@@ -14,6 +14,10 @@ admin.initializeApp();
 // Export the AzamPay callback function from its file.
 exports.azampayCallbackUrl = require("./src/functions/azampayCallback");
 
+// Export the Vodacom payment callback function from its file.
+exports.vodacomPaymentCallback =
+  require("./src/functions/vodacomPaymentCallback").vodacomPaymentCallback;
+
 // Export the scheduled function for checking overdue rentals from its file.
 exports.checkOverdueRentals = require("./src/functions/checkOverdueRentals");
 // Export the deletion feedback email function
@@ -25,8 +29,8 @@ exports.sendReminderSMSFunction = reminderSMSFunctions.sendReminderSMSFunction;
 exports.sendReminderSMSManual = reminderSMSFunctions.sendReminderSMSManual;
 
 // Export the return SMS trigger function (fires when rental status changes to "returned")
-exports.sendReturnSMSOnStatusChange = require("./src/functions/sendReturnSMS")
-  .sendReturnSMSOnStatusChange;
+exports.sendReturnSMSOnStatusChange =
+  require("./src/functions/sendReturnSMS").sendReturnSMSOnStatusChange;
 
 // Export OTP verification and custom token functions (Beem Africa SMS)
 const otpFunctions = require("./src/functions/verifyOTPAndGetToken");
@@ -37,4 +41,5 @@ exports.sendOTP = otpFunctions.sendOTP;
 exports.appRedirect = require("./src/functions/appRedirect").appRedirect;
 
 // Export QR code generator (returns a PNG image of the app download link)
-exports.generateQRCode = require("./src/functions/generateQRCode").generateQRCode;
+exports.generateQRCode =
+  require("./src/functions/generateQRCode").generateQRCode;
