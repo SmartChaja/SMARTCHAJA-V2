@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../response/vodacom_payment_result.dart';
 import '../service/vodacom_payment_service.dart';
+import '../service/vodacom_transaction_service.dart';
 
 /// ViewModel for managing Vodacom payment operations
 class VodacomPaymentViewModel
@@ -118,6 +119,72 @@ class VodacomPaymentViewModel
       state = AsyncValue.data(operationResult);
     } catch (e, stackTrace) {
       state = AsyncValue.error(e, stackTrace);
+    }
+  }
+
+  /// Saves transaction record to Firestore after successful payment
+  /// This should be called from UI after receiving successful payment response
+  ///
+  /// The transaction will be:
+  /// - Status: 'pending' initially (waiting for callback confirmation)
+  /// - Status: 'confirmed' when Cloud Function callback updates balance
+  /// - Status: 'failed' if callback indicates failure
+  Future<String?> saveTransactionRecord({
+    required double amount,
+    required String currency,
+    required String transactionId,
+    required String conversationId,
+    required String thirdPartyConversationId,
+    required String responseCode,
+    required String responseDesc,
+    required VodacomTransactionService transactionService,
+  }) async {
+    try {
+      print('[VodacomPayment] Saving transaction record...');
+      final transactionDocId = await transactionService.savePendingTransaction(
+        amount: amount,
+        currency: currency,
+        transactionId: transactionId,
+        conversationId: conversationId,
+        thirdPartyConversationId: thirdPartyConversationId,
+        responseCode: responseCode,
+        responseDesc: responseDesc,
+      );
+      print('[VodacomPayment] ✓ Transaction saved: $transactionDocId');
+      return transactionDocId;
+    } catch (e) {
+      print('[VodacomPayment] ✗ Error saving transaction: $e');
+      return null;
+    }
+  }
+
+  /// Confirms a transaction (adds balance to user account)
+  /// Should be called by:
+  /// 1. Cloud Function callback handler (for async payments)
+  /// 2. UI directly (for sync payments with immediate confirmation)
+  Future<bool> confirmTransactionBalance({
+    required String transactionDocId,
+    required double amount,
+    required VodacomTransactionService transactionService,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      print('[VodacomPayment] ✗ No authenticated user found');
+      return false;
+    }
+
+    try {
+      print('[VodacomPayment] Confirming transaction and updating balance...');
+      await transactionService.confirmTransaction(
+        transactionDocId: transactionDocId,
+        userId: user.uid,
+        amount: amount,
+      );
+      print('[VodacomPayment] ✓ Transaction confirmed and balance updated');
+      return true;
+    } catch (e) {
+      print('[VodacomPayment] ✗ Error confirming transaction: $e');
+      return false;
     }
   }
 

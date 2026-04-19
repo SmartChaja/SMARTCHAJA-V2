@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_chaja/features/chargenow_devices/payment/azam/model/payment_model.dart';
 import 'package:smart_chaja/features/chargenow_devices/payment/azam/provider/payment_providers.dart';
 import 'package:smart_chaja/features/chargenow_devices/payment/azam/response/payment_result.dart';
-import 'package:smart_chaja/features/chargenow_devices/payment/vodacom/provider/vodacom_payment_providers.dart';
+import 'package:smart_chaja/features/chargenow_devices/payment/vodacom/provider/vodacom_payment_providers.dart'
+    as vpn;
+import 'package:smart_chaja/features/chargenow_devices/payment/vodacom/service/vodacom_secure_config.dart';
 import 'package:smart_chaja/features/chargenow_devices/payment/screen/mobile_widgets/dialog_utils.dart';
 import 'package:smart_chaja/features/chargenow_devices/payment/screen/mobile_widgets/mobile_number_validator.dart';
 
@@ -136,10 +138,16 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
     // Use 'mobile wallet payment' for sandbox, 'Mobile Wallet Top-up' for production
     final purchasedItemsDesc = 'mobile wallet payment';
 
-    ref.read(vodacomPaymentViewModelProvider.notifier).performC2BPayment(
+    // Fetch service provider code from secure config
+    final secureConfig = VodacomSecureConfig();
+    final serviceCode = vpn.PRODUCTION_MODE
+        ? secureConfig.productionServiceCode
+        : secureConfig.sandboxServiceCode;
+
+    ref.read(vpn.vodacomPaymentViewModelProvider.notifier).performC2BPayment(
           amount: amount,
           customerMsisdn: normalizedNumber,
-          serviceProviderCode: '000000', // For sandbox, must be '000000'
+          serviceProviderCode: serviceCode,
           transactionReference: safeTransactionRef,
           purchasedItemsDesc: purchasedItemsDesc,
         );
@@ -218,7 +226,7 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
     });
 
     // Listen to Vodacom payment state
-    ref.listen(vodacomPaymentViewModelProvider, (previous, next) {
+    ref.listen(vpn.vodacomPaymentViewModelProvider, (previous, next) {
       next.when(
         data: (result) {
           if (result != null) {
@@ -258,7 +266,7 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
     });
 
     final paymentState = ref.watch(paymentViewModelProvider);
-    final vodacomState = ref.watch(vodacomPaymentViewModelProvider);
+    final vodacomState = ref.watch(vpn.vodacomPaymentViewModelProvider);
 
     // Show loading if either payment method is processing
     final isLoading = paymentState.isLoading || vodacomState.isLoading;

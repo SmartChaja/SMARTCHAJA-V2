@@ -2,12 +2,24 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:uuid/uuid.dart';
 import 'encryption_service.dart';
+import 'vodacom_secure_config.dart';
 import '../model/vodacom_payment_model.dart';
+import '../utils/msisdn_formatter.dart';
 
 /// Configuration for Vodacom API
 class VodacomConfig {
-  static const String publicKey =
-      "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEArv9yxA69XQKBo24BaF/D+fvlqmGdYjqLQ5WtNBb5tquqGvAvG3WMFETVUSow/LizQalxj2ElMVrUmzu5mGGkxK08bWEXF7a1DEvtVJs6nppIlFJc2SnrU14AOrIrB28ogm58JjAl5BOQawOXD5dfSk7MaAA82pVHoIqEu0FxA8BOKU+RGTihRU+ptw1j4bsAJYiPbSX6i71gfPvwHPYamM0bfI4CmlsUUR3KvCG24rB6FNPcRBhM3jDuv8ae2kC33w9hEq8qNB55uw51vK7hyXoAa+U7IqP1y6nBdlN25gkxEA8yrsl1678cspeXr+3ciRyqoRgj9RD/ONbJhhxFvt1cLBh+qwK2eqISfBb06eRnNeC71oBokDm3zyCnkOtMDGl7IvnMfZfEPFCfg5QgJVk1msPpRvQxmEsrX9MQRyFVzgy2CWNIb7c+jPapyrNwoUbANlN8adU1m6yOuoX7F49x+OjiG2se0EJ6nafeKUXw/+hiJZvELUYgzKUtMAZVTNZfT8jjb58j8GVtuS+6TM2AutbejaCV84ZK58E2CRJqhmjQibEUO6KPdD7oTlEkFy52Y1uOOBXgYpqMzufNPmfdqqqSM4dU70PO8ogyKGiLAIxCetMjjm6FCMEA3Kc8K0Ig7/XtFm9By6VxTJK1Mg36TlHaZKP6VzVLXMtesJECAwEAAQ==";
+  static String getPublicKey(bool isSandbox) {
+    try {
+      final secureConfig = VodacomSecureConfig();
+      return isSandbox
+          ? secureConfig.sandboxRsaPublicKey
+          : secureConfig.productionRsaPublicKey;
+    } catch (e) {
+      // Fallback to default RSA key if secure config not initialized
+      // This is the official Vodacom M-Pesa public key
+      return "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEArv9yxA69XQKBo24BaF/D+fvlqmGdYjqLQ5WtNBb5tquqGvAvG3WMFETVUSow/LizQalxj2ElMVrUmzu5mGGkxK08bWEXF7a1DEvtVJs6nppIlFJc2SnrU14AOrIrB28ogm58JjAl5BOQawOXD5dfSk7MaAA82pVHoIqEu0FxA8BOKU+RGTihRU+ptw1j4bsAJYiPbSX6i71gfPvwHPYamM0bfI4CmlsUUR3KvCG24rB6FNPcRBhM3jDuv8ae2kC33w9hEq8qNB55uw51vK7hyXoAa+U7IqP1y6nBdlN25gkxEA8yrsl1678cspeXr+3ciRyqoRgj9RD/ONbJhhxFvt1cLBh+qwK2eqISfBb06eRnNeC71oBokDm3zyCnkOtMDGl7IvnMfZfEPFCfg5QgJVk1msPpRvQxmEsrX9MQRyFVzgy2CWNIb7c+jPapyrNwoUbANlN8adU1m6yOuoX7F49x+OjiG2se0EJ6nafeKUXw/+hiJZvELUYgzKUtMAZVTNZfT8jjb58j8GVtuS+6TM2AutbejaCV84ZK58E2CRJqhmjQibEUO6KPdD7oTlEkFy52Y1uOOBXgYpqMzufNPmfdqqqSM4dU70PO8ogyKGiLAIxCetMjjm6FCMEA3Kc8K0Ig7/XtFm9By6VxTJK1Mg36TlHaZKP6VzVLXMtesJECAwEAAQ==";
+    }
+  }
 
   static const String sandboxHost = "openapi.m-pesa.com";
   static const String sandboxPath = "/sandbox/ipg/v2";
@@ -23,11 +35,13 @@ class VodacomConfig {
 /// Vodacom Payment Service for M-Pesa OpenAPI integration
 class VodacomPaymentService {
   final String apiKey;
+  final String serviceProviderCode;
   final bool sandbox;
   final String origin;
 
   VodacomPaymentService({
     required this.apiKey,
+    required this.serviceProviderCode,
     this.sandbox = true,
     this.origin = '*',
   });
@@ -49,7 +63,7 @@ class VodacomPaymentService {
 
       // Encrypt the API key with RSA - required for authentication
       final encryptedApiKey = EncryptionService.encryptWithPublicKey(
-        VodacomConfig.publicKey,
+        VodacomConfig.getPublicKey(sandbox),
         apiKey,
       );
 
@@ -77,8 +91,8 @@ class VodacomPaymentService {
 
       // Initialize Dio with timeout and disable status code validation
       final dio = Dio();
-      dio.options.connectTimeout = const Duration(seconds: 30);
-      dio.options.receiveTimeout = const Duration(seconds: 30);
+      dio.options.connectTimeout = const Duration(seconds: 60);
+      dio.options.receiveTimeout = const Duration(seconds: 90);
       dio.options.validateStatus =
           (_) => true; // Don't throw on any status code
 
@@ -151,15 +165,92 @@ class VodacomPaymentService {
     required String purchasedItemsDesc,
   }) async {
     try {
-      // Validate inputs
-      if (amount.isEmpty || customerMsisdn.isEmpty) {
-        print('[VodacomAPI] ✗ Invalid amount or customer MSISDN');
-        return VodacomPaymentResult.error('Invalid amount or customer MSISDN');
+      // Validate and format MSISDN (phone number)
+      String formattedMsisdn;
+      try {
+        formattedMsisdn = MsisdnFormatter.formatToMsisdn(customerMsisdn);
+        print(
+            '[VodacomAPI] ✓ MSISDN formatted: $customerMsisdn → $formattedMsisdn');
+      } catch (e) {
+        print('[VodacomAPI] ✗ MSISDN format error: $e');
+        print('[VodacomAPI] TROUBLESHOOTING:');
+        print(
+            '[VodacomAPI] - MSISDN must be 12-14 digits (country code + phone)');
+        print(
+            '[VodacomAPI] - Examples: "0712345678" → "255712345678" (Tanzania)');
+        print('[VodacomAPI] - Or: "+255712345678" → "255712345678"');
+        print(
+            '[VodacomAPI] - Error: ${MsisdnFormatter.getErrorMessage(customerMsisdn)}');
+        return VodacomPaymentResult.error(
+          'Invalid phone number format: ${MsisdnFormatter.getErrorMessage(customerMsisdn)}',
+        );
       }
+
+      // Validate all required parameters per API docs
+      print(
+          '[VodacomAPI] Validating parameters against Vodacom API requirements...');
+
+      // Validate Amount: ^\d*\.?\d+$
+      if (amount.isEmpty || !RegExp(r'^\d*\.?\d+$').hasMatch(amount)) {
+        print('[VodacomAPI] ✗ Invalid Amount: "$amount"');
+        print('[VodacomAPI] - Amount must be numeric (e.g., 10 or 10.50)');
+        return VodacomPaymentResult.error(
+            'Invalid amount format. Must be numeric (e.g., 5000 or 5000.50)');
+      }
+
+      // Validate Service Provider Code: ^([0-9A-Za-z]{4,12})$
+      if (serviceProviderCode == null ||
+          serviceProviderCode.isEmpty ||
+          !RegExp(r'^([0-9A-Za-z]{4,12})$').hasMatch(serviceProviderCode)) {
+        print(
+            '[VodacomAPI] ✗ Invalid ServiceProviderCode: "$serviceProviderCode"');
+        print(
+            '[VodacomAPI] - Must be 4-12 alphanumeric characters (e.g., ORG001)');
+        return VodacomPaymentResult.error(
+            'Invalid service provider code. Must be 4-12 alphanumeric characters.');
+      }
+
+      // Validate Transaction Reference: ^[0-9a-zA-Z \w+]{1,20}$
+      if (transactionReference.isEmpty ||
+          transactionReference.length > 20 ||
+          !RegExp(r'^[0-9a-zA-Z \w+]{1,20}$').hasMatch(transactionReference)) {
+        print(
+            '[VodacomAPI] ✗ Invalid TransactionReference: "$transactionReference"');
+        print(
+            '[VodacomAPI] - Must be 1-20 characters (alphanumeric, space, or underscore)');
+        return VodacomPaymentResult.error(
+            'Invalid transaction reference. Must be 1-20 characters.');
+      }
+
+      // Validate Purchased Items Description: ^[0-0a-zA-Z \w+]{1,256}$
+      if (purchasedItemsDesc.isEmpty ||
+          purchasedItemsDesc.length > 256 ||
+          !RegExp(r'^[0-9a-zA-Z \w+]{1,256}$').hasMatch(purchasedItemsDesc)) {
+        print(
+            '[VodacomAPI] ✗ Invalid PurchasedItemsDesc: "$purchasedItemsDesc"');
+        print(
+            '[VodacomAPI] - Must be 1-256 characters (alphanumeric, space, or underscore)');
+        return VodacomPaymentResult.error(
+            'Invalid purchased items description. Must be 1-256 characters.');
+      }
+
+      // Validate Country is set
+      if (VodacomConfig.country.isEmpty) {
+        print('[VodacomAPI] ✗ Country not configured');
+        return VodacomPaymentResult.error('Country configuration missing.');
+      }
+
+      // Validate Currency is set
+      if (VodacomConfig.currency.isEmpty) {
+        print('[VodacomAPI] ✗ Currency not configured');
+        return VodacomPaymentResult.error('Currency configuration missing.');
+      }
+
+      print('[VodacomAPI] ✓ All parameters validated successfully');
 
       // Encrypt the session key
       final encryptedSessionKey = EncryptionService.encryptWithPublicKey(
-        VodacomConfig.publicKey,
+        VodacomConfig.getPublicKey(sandbox),
         sessionKey,
       );
 
@@ -173,18 +264,13 @@ class VodacomPaymentService {
         'input_Amount': amount,
         'input_Country': VodacomConfig.country,
         'input_Currency': VodacomConfig.currency,
-        // For sandbox, only remove '255' prefix if present, not all occurrences
-        'input_CustomerMSISDN': sandbox
-            ? (customerMsisdn.startsWith('255')
-                ? customerMsisdn.substring(3)
-                : customerMsisdn)
-            : customerMsisdn,
-        // Always use '000000' for sandbox testing
-        'input_ServiceProviderCode':
-            sandbox ? '000000' : (serviceProviderCode ?? ''),
-        // Use test value for sandbox, UUID for production
+        // Use formatted MSISDN (12-14 digits, international format)
+        'input_CustomerMSISDN': formattedMsisdn,
+        'input_ServiceProviderCode': serviceProviderCode,
+        // Use test value for sandbox, UUID (without dashes) for production
+        // API regex: ^[0-9a-zA-Z \w+]{1,40}$ (no dashes allowed)
         'input_ThirdPartyConversationID':
-            sandbox ? 'test1234567891' : const Uuid().v4(),
+            sandbox ? 'test1234567891' : const Uuid().v4().replaceAll('-', ''),
         'input_TransactionReference': transactionReference,
         'input_PurchasedItemsDesc': purchasedItemsDesc,
       };
@@ -201,8 +287,8 @@ class VodacomPaymentService {
 
       // Initialize Dio with timeout and disable status code validation
       final dio = Dio();
-      dio.options.connectTimeout = const Duration(seconds: 30);
-      dio.options.receiveTimeout = const Duration(seconds: 30);
+      dio.options.connectTimeout = const Duration(seconds: 60);
+      dio.options.receiveTimeout = const Duration(seconds: 90);
       dio.options.validateStatus =
           (_) => true; // Don't throw on any status code
 
@@ -263,7 +349,7 @@ class VodacomPaymentService {
   }) async {
     try {
       final encryptedSessionKey = EncryptionService.encryptWithPublicKey(
-        VodacomConfig.publicKey,
+        VodacomConfig.getPublicKey(sandbox),
         sessionKey,
       );
 
@@ -282,8 +368,8 @@ class VodacomPaymentService {
 
       // Initialize Dio with timeout and disable status code validation
       final dio = Dio();
-      dio.options.connectTimeout = const Duration(seconds: 30);
-      dio.options.receiveTimeout = const Duration(seconds: 30);
+      dio.options.connectTimeout = const Duration(seconds: 60);
+      dio.options.receiveTimeout = const Duration(seconds: 90);
       dio.options.validateStatus =
           (_) => true; // Don't throw on any status code
 
