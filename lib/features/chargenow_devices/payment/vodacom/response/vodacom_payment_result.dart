@@ -9,6 +9,8 @@ class VodacomPaymentOperationResult {
   final String? currency;
   final String? provider;
   final String? transactionDocId;
+  final String? responseCode;
+  final String? responseDesc;
 
   VodacomPaymentOperationResult({
     required this.isSuccess,
@@ -20,6 +22,8 @@ class VodacomPaymentOperationResult {
     this.currency,
     this.provider,
     this.transactionDocId,
+    this.responseCode,
+    this.responseDesc,
   });
 
   /// Create from Vodacom API response
