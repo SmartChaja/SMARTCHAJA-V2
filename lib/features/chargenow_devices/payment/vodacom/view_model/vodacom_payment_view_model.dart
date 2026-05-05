@@ -114,6 +114,8 @@ class VodacomPaymentViewModel
         amount: amount,
         currency: paymentResult.currency,
         provider: 'Vodacom',
+        responseCode: paymentResult.responseCode,
+        responseDesc: paymentResult.responseDesc,
       );
 
       state = AsyncValue.data(operationResult);

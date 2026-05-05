@@ -5,6 +5,7 @@ import 'package:smart_chaja/features/chargenow_devices/payment/azam/provider/pay
 import 'package:smart_chaja/features/chargenow_devices/payment/azam/response/payment_result.dart';
 import 'package:smart_chaja/features/chargenow_devices/payment/vodacom/provider/vodacom_payment_providers.dart'
     as vpn;
+import 'package:smart_chaja/features/chargenow_devices/payment/vodacom/response/vodacom_payment_result.dart';
 import 'package:smart_chaja/features/chargenow_devices/payment/vodacom/service/vodacom_secure_config.dart';
 import 'package:smart_chaja/features/chargenow_devices/payment/screen/mobile_widgets/dialog_utils.dart';
 import 'package:smart_chaja/features/chargenow_devices/payment/screen/mobile_widgets/mobile_number_validator.dart';
@@ -182,6 +183,80 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
         );
   }
 
+  /// Handle successful Vodacom payment by saving transaction and updating balance
+  Future<void> _handleVodacomPaymentSuccess(
+    VodacomPaymentOperationResult result,
+    WidgetRef ref,
+  ) async {
+    try {
+      final paymentNotifier =
+          ref.read(vpn.vodacomPaymentViewModelProvider.notifier);
+      final transactionService =
+          ref.read(vpn.vodacomTransactionServiceProvider);
+
+      // Step 1: Save transaction record
+      final transactionDocId = await paymentNotifier.saveTransactionRecord(
+        amount: double.parse(result.amount ?? '0'),
+        currency: result.currency ?? 'TZS',
+        transactionId: result.transactionId ?? '',
+        conversationId: result.conversationId ?? '',
+        thirdPartyConversationId: result.thirdPartyConversationId ?? '',
+        responseCode: result.responseCode ?? 'INS-0',
+        responseDesc: result.responseDesc ?? 'Success',
+        transactionService: transactionService,
+      );
+
+      if (transactionDocId != null && result.responseCode == 'INS-0') {
+        // Step 2: Immediately confirm transaction for synchronous payments
+        final confirmed = await paymentNotifier.confirmTransactionBalance(
+          transactionDocId: transactionDocId,
+          amount: double.parse(result.amount ?? '0'),
+          transactionService: transactionService,
+        );
+
+        if (confirmed) {
+          print('[Payment] ✓ Wallet balance updated!');
+        }
+      }
+
+      // Navigate to success screen
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentResultScreen(
+              isSuccess: true,
+              title: 'Payment Successful',
+              message: 'Your deposit has been successfully processed.',
+              transactionId: result.transactionId,
+              amount: result.amount,
+              provider: result.provider,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('[Payment] ✗ Error processing payment: $e');
+      // Still show success screen even if balance confirmation fails
+      // (transaction is saved and can be recovered later)
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentResultScreen(
+              isSuccess: true,
+              title: 'Payment Successful',
+              message: 'Your deposit has been successfully processed.',
+              transactionId: result.transactionId,
+              amount: result.amount,
+              provider: result.provider,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Listen to Azam payment state
@@ -229,18 +304,18 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
     ref.listen(vpn.vodacomPaymentViewModelProvider, (previous, next) {
       next.when(
         data: (result) {
-          if (result != null) {
+          if (result != null && result.isSuccess) {
+            // Save transaction record and confirm balance
+            _handleVodacomPaymentSuccess(result, ref);
+          } else if (result != null) {
+            // Payment failed, navigate to failure screen
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
                 builder: (context) => PaymentResultScreen(
-                  isSuccess: result.isSuccess,
-                  title: result.isSuccess
-                      ? 'Payment Successful'
-                      : 'Payment Failed',
-                  message: result.isSuccess
-                      ? 'Your deposit has been successfully processed.'
-                      : result.message,
+                  isSuccess: false,
+                  title: 'Payment Failed',
+                  message: result.message,
                   transactionId: result.transactionId,
                   amount: result.amount,
                   provider: result.provider,
