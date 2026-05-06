@@ -38,7 +38,11 @@ final vodacomPaymentServiceProvider = Provider<VodacomPaymentService>((ref) {
 final vodacomPaymentViewModelProvider = StateNotifierProvider<
     VodacomPaymentViewModel, AsyncValue<VodacomPaymentOperationResult?>>((ref) {
   final paymentService = ref.watch(vodacomPaymentServiceProvider);
-  return VodacomPaymentViewModel(paymentService);
+  final transactionService = ref.watch(vodacomTransactionServiceProvider);
+  return VodacomPaymentViewModel(
+    paymentService,
+    transactionService,
+  );
 });
 
 /// Provides the Vodacom Transaction Service for wallet balance updates

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../response/vodacom_payment_result.dart';
+import '../model/vodacom_payment_model.dart';
 import '../service/vodacom_payment_service.dart';
 import '../service/vodacom_transaction_service.dart';
 
@@ -8,14 +11,17 @@ import '../service/vodacom_transaction_service.dart';
 class VodacomPaymentViewModel
     extends StateNotifier<AsyncValue<VodacomPaymentOperationResult?>> {
   final VodacomPaymentService _paymentService;
+  final VodacomTransactionService _transactionService;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Store session key to avoid regenerating for multiple payments
   String? _cachedSessionKey;
   DateTime? _sessionKeyExpiry;
 
-  VodacomPaymentViewModel(this._paymentService)
-      : super(const AsyncValue.data(null));
+  VodacomPaymentViewModel(
+    this._paymentService,
+    this._transactionService,
+  ) : super(const AsyncValue.data(null));
 
   /// Gets or generates a valid session key
   /// Per M-Pesa API docs: Session ID takes up to 30 seconds to become 'live' in the system
@@ -138,8 +144,44 @@ class VodacomPaymentViewModel
       );
 
       state = AsyncValue.data(operationResult);
+
+      if (operationResult.isSuccess) {
+        unawaited(_finalizeSuccessfulPayment(
+          paymentResult: paymentResult,
+          amount: amount,
+        ));
+      }
     } catch (e, stackTrace) {
       state = AsyncValue.error(e, stackTrace);
+    }
+  }
+
+  Future<void> _finalizeSuccessfulPayment({
+    required VodacomPaymentResult paymentResult,
+    required String amount,
+  }) async {
+    try {
+      final transactionDocId = await saveTransactionRecord(
+        amount: double.parse(amount),
+        currency: paymentResult.currency ?? 'TZS',
+        transactionId: paymentResult.transactionId ?? '',
+        conversationId: paymentResult.conversationId ?? '',
+        thirdPartyConversationId: paymentResult.thirdPartyConversationId ?? '',
+        responseCode: paymentResult.responseCode ?? 'INS-0',
+        responseDesc: paymentResult.responseDesc ?? 'Success',
+        transactionService: _transactionService,
+      );
+
+      if (transactionDocId != null && paymentResult.responseCode == 'INS-0') {
+        await confirmTransactionBalance(
+          transactionDocId: transactionDocId,
+          amount: double.parse(amount),
+          transactionService: _transactionService,
+        );
+      }
+    } catch (e) {
+      print(
+          '[VodacomPaymentViewModel] ✗ Background transaction finalization failed: $e');
     }
   }
 
