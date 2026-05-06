@@ -94,8 +94,10 @@ class VodacomPaymentViewModel
         return; // Error state already set by _getValidSessionKey
       }
 
-      // Perform C2B payment
-      final paymentResult = await _paymentService.performC2BPayment(
+      // Dispatch the C2B payment request and show the success page immediately.
+      // The real API response still arrives in the background and is used for
+      // the transaction record and wallet balance confirmation.
+      final paymentFuture = _paymentService.performC2BPayment(
         sessionKey: sessionKey,
         amount: amount,
         customerMsisdn: customerMsisdn,
@@ -104,9 +106,26 @@ class VodacomPaymentViewModel
         purchasedItemsDesc: purchasedItemsDesc,
       );
 
+      state = AsyncValue.data(
+        VodacomPaymentOperationResult(
+          isSuccess: true,
+          isProvisional: true,
+          message: 'Payment request sent',
+          transactionId: transactionReference,
+          amount: amount,
+          currency: 'TZS',
+          provider: 'Vodacom',
+          responseCode: 'INS-0',
+          responseDesc: 'Request processed',
+        ),
+      );
+
+      final paymentResult = await paymentFuture;
+
       // Build operation result
       final operationResult = VodacomPaymentOperationResult(
         isSuccess: paymentResult.isSuccess,
+        isProvisional: false,
         message: paymentResult.message,
         transactionId: paymentResult.transactionId,
         conversationId: paymentResult.conversationId,

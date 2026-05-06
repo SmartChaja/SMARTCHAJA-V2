@@ -1,6 +1,7 @@
 /// Represents the result of a Vodacom payment operation
 class VodacomPaymentOperationResult {
   final bool isSuccess;
+  final bool isProvisional;
   final String message;
   final String? transactionId;
   final String? conversationId;
@@ -14,6 +15,7 @@ class VodacomPaymentOperationResult {
 
   VodacomPaymentOperationResult({
     required this.isSuccess,
+    this.isProvisional = false,
     required this.message,
     this.transactionId,
     this.conversationId,
@@ -37,6 +39,7 @@ class VodacomPaymentOperationResult {
     final isSuccess = response['output_ResponseCode'] == 'INS-0';
     return VodacomPaymentOperationResult(
       isSuccess: isSuccess,
+      isProvisional: false,
       message: response['output_ResponseDesc'] ?? 'Transaction processed',
       transactionId: response['output_TransactionID'],
       conversationId: response['output_ConversationID'],
@@ -52,6 +55,7 @@ class VodacomPaymentOperationResult {
   factory VodacomPaymentOperationResult.error(String message) {
     return VodacomPaymentOperationResult(
       isSuccess: false,
+      isProvisional: false,
       message: message,
     );
   }

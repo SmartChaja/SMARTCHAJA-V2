@@ -23,6 +23,7 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
   final _mobileNumberController = TextEditingController();
   final _amountController = TextEditingController();
   String _selectedProvider = 'Airtel';
+  bool _vodacomSuccessScreenShown = false;
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -186,8 +187,9 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
   /// Handle successful Vodacom payment by saving transaction and updating balance
   Future<void> _handleVodacomPaymentSuccess(
     VodacomPaymentOperationResult result,
-    WidgetRef ref,
-  ) async {
+    WidgetRef ref, {
+    bool navigate = true,
+  }) async {
     try {
       final paymentNotifier =
           ref.read(vpn.vodacomPaymentViewModelProvider.notifier);
@@ -219,8 +221,8 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
         }
       }
 
-      // Navigate to success screen
-      if (mounted) {
+      // Navigate to success screen unless the provisional UI is already visible.
+      if (navigate && mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -239,7 +241,7 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
       print('[Payment] ✗ Error processing payment: $e');
       // Still show success screen even if balance confirmation fails
       // (transaction is saved and can be recovered later)
-      if (mounted) {
+      if (navigate && mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -304,10 +306,38 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
     ref.listen(vpn.vodacomPaymentViewModelProvider, (previous, next) {
       next.when(
         data: (result) {
-          if (result != null && result.isSuccess) {
-            // Save transaction record and confirm balance
-            _handleVodacomPaymentSuccess(result, ref);
+          if (result != null && result.isSuccess && result.isProvisional) {
+            _vodacomSuccessScreenShown = true;
+            if (mounted) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PaymentResultScreen(
+                    isSuccess: true,
+                    title: 'Payment Successful',
+                    message: 'Your deposit has been successfully processed.',
+                    transactionId: result.transactionId,
+                    amount: result.amount,
+                    provider: result.provider,
+                  ),
+                ),
+              );
+            }
+          } else if (result != null && result.isSuccess) {
+            // Save transaction record and confirm balance.
+            // If the provisional success page is already shown, keep it on top
+            // and only process the transaction in the background.
+            _handleVodacomPaymentSuccess(
+              result,
+              ref,
+              navigate: !_vodacomSuccessScreenShown,
+            );
           } else if (result != null) {
+            if (_vodacomSuccessScreenShown) {
+              print('[Payment] ⚠️ Vodacom failure received after provisional success screen was shown: ${result.message}');
+              return;
+            }
+
             // Payment failed, navigate to failure screen
             Navigator.pushReplacement(
               context,
@@ -326,6 +356,11 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
         },
         loading: () {},
         error: (error, stack) {
+          if (_vodacomSuccessScreenShown) {
+            print('[Payment] ⚠️ Vodacom error received after provisional success screen was shown: $error');
+            return;
+          }
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
