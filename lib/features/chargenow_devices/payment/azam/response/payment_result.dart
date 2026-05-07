@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:smart_chaja/features/chargenow_devices/payment/azam/view/main_payment_screen.dart';
 
 class PaymentResultScreen extends StatelessWidget {
   final bool isSuccess;
@@ -7,6 +8,7 @@ class PaymentResultScreen extends StatelessWidget {
   final String? transactionId;
   final String? amount;
   final String? provider;
+  final bool isVodacomPayment;
 
   const PaymentResultScreen({
     super.key,
@@ -16,6 +18,7 @@ class PaymentResultScreen extends StatelessWidget {
     this.transactionId,
     this.amount,
     this.provider,
+    this.isVodacomPayment = false,
   });
 
   @override
@@ -222,7 +225,20 @@ class PaymentResultScreen extends StatelessWidget {
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              if (isSuccess && isVodacomPayment) {
+                // Navigate to Add Money page for Vodacom payments
+                // Remove success and checkout screens from stack
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (context) => const MainPaymentScreen(),
+                  ),
+                  ModalRoute.withName('/wallet'),
+                );
+              } else {
+                Navigator.pop(context);
+              }
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor:
                   isSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444),

@@ -201,6 +201,7 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
             transactionId: result.transactionId,
             amount: result.amount,
             provider: result.provider,
+            isVodacomPayment: true,
           ),
         ),
       );
@@ -267,6 +268,7 @@ class _MobileCheckoutScreenState extends ConsumerState<MobileCheckoutScreen>
                     transactionId: result.transactionId,
                     amount: result.amount,
                     provider: result.provider,
+                    isVodacomPayment: true,
                   ),
                 ),
               );
