@@ -64,6 +64,56 @@ class VodacomTransactionService {
     }
   }
 
+  /// Saves a failed transaction so rejected or abandoned payment attempts
+  /// still appear in Firestore and can be reviewed later.
+  Future<String> saveFailedTransaction({
+    required double amount,
+    required String currency,
+    required String transactionId,
+    required String conversationId,
+    required String thirdPartyConversationId,
+    required String responseCode,
+    required String responseDesc,
+    String? failureReason,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('No authenticated user found');
+    }
+
+    final transactionDocId = const Uuid().v4();
+
+    final transactionData = {
+      'id': transactionDocId,
+      'userId': user.uid,
+      'amount': amount,
+      'currency': currency,
+      'provider': 'Vodacom',
+      'status': 'failed',
+      'transactionId': transactionId,
+      'conversationId': conversationId,
+      'thirdPartyConversationId': thirdPartyConversationId,
+      'responseCode': responseCode,
+      'responseDesc': responseDesc,
+      'failureReason': failureReason ?? responseDesc,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    try {
+      await _firestore
+          .collection('transactions')
+          .doc(transactionDocId)
+          .set(transactionData);
+      print(
+          '[VodacomTransaction] ✓ Saved failed transaction: $transactionDocId');
+      return transactionDocId;
+    } catch (e) {
+      print('[VodacomTransaction] ✗ Error saving failed transaction: $e');
+      rethrow;
+    }
+  }
+
   /// Updates transaction status to confirmed and adds amount to user's balance
   /// Uses Firestore transaction for atomicity
   ///

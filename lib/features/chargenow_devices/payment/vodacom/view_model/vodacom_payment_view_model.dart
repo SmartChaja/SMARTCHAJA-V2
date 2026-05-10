@@ -150,6 +150,11 @@ class VodacomPaymentViewModel
           paymentResult: paymentResult,
           amount: amount,
         ));
+      } else {
+        unawaited(_recordFailedPayment(
+          paymentResult: paymentResult,
+          amount: amount,
+        ));
       }
     } catch (e, stackTrace) {
       state = AsyncValue.error(e, stackTrace);
@@ -182,6 +187,27 @@ class VodacomPaymentViewModel
     } catch (e) {
       print(
           '[VodacomPaymentViewModel] ✗ Background transaction finalization failed: $e');
+    }
+  }
+
+  Future<void> _recordFailedPayment({
+    required VodacomPaymentResult paymentResult,
+    required String amount,
+  }) async {
+    try {
+      await _transactionService.saveFailedTransaction(
+        amount: double.parse(amount),
+        currency: paymentResult.currency ?? 'TZS',
+        transactionId: paymentResult.transactionId ?? '',
+        conversationId: paymentResult.conversationId ?? '',
+        thirdPartyConversationId: paymentResult.thirdPartyConversationId ?? '',
+        responseCode: paymentResult.responseCode ?? 'FAILED',
+        responseDesc: paymentResult.responseDesc ?? paymentResult.message,
+        failureReason: paymentResult.message,
+      );
+    } catch (e) {
+      print(
+          '[VodacomPaymentViewModel] ✗ Background failed-transaction save failed: $e');
     }
   }
 
