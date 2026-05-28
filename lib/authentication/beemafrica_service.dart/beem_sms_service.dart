@@ -7,9 +7,9 @@ import 'dart:developer';
 /// This service provides methods to send SMS notifications for power bank operations
 class BeemSmsService {
   // Beem Africa API Credentials
-  final String _apiKey = '247b432f75dbf2cd';
+  final String _apiKey = 'd1e4f08dafee8de0';
   final String _secretKey =
-      'YTA3Zjg0NmFiZDhlMGZmZTc5YzRhMTk0ZDViZDQwMjE1ZmY4Njc0ZjU5MzVmZDcwMDc1NjdmOGMwYzE5OTQ4Ng==';
+      'YTU3NGEwODQyZjgzNGQ5NjEyMmFkNjdhNGEwNzAxOWRiY2FmOWVlMTBhMTk2MmUxODNhZDdkMDdjNjMyZWYxZg==';
   final String _senderId = 'SmartChaja';
 
   // Tanzania country code

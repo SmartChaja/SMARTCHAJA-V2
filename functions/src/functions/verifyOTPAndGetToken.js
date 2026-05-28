@@ -101,7 +101,10 @@ exports.verifyOTPAndGetToken = onCall(async (request) => {
       userRecord = await admin.auth().getUser(newUid);
       logger.info(`Existing user found: ${newUid}`);
       // If phone number is different, update it
-      if (userRecord.phoneNumber !== (cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`)) {
+      if (
+        userRecord.phoneNumber !==
+        (cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`)
+      ) {
         await admin.auth().updateUser(newUid, {
           phoneNumber: cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`,
         });
@@ -112,13 +115,13 @@ exports.verifyOTPAndGetToken = onCall(async (request) => {
       if (error.code === "auth/user-not-found") {
         // Try to find user by phone number (old user)
         try {
-          userRecord = await admin.auth().getUserByPhoneNumber(
-            cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`,
-          );
+          userRecord = await admin
+            .auth()
+            .getUserByPhoneNumber(
+              cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`,
+            );
           usedUid = userRecord.uid;
-          logger.info(
-            `Found old user by phone number: ${userRecord.uid}`,
-          );
+          logger.info(`Found old user by phone number: ${userRecord.uid}`);
         } catch (err2) {
           if (err2.code === "auth/user-not-found") {
             // Create new user
@@ -135,32 +138,25 @@ exports.verifyOTPAndGetToken = onCall(async (request) => {
         }
       } else if (error.code === "auth/phone-number-already-exists") {
         // Phone number already exists for another user, find and use that user
-        userRecord = await admin.auth().getUserByPhoneNumber(
-          cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`,
-        );
+        userRecord = await admin
+          .auth()
+          .getUserByPhoneNumber(
+            cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`,
+          );
         usedUid = userRecord.uid;
-        logger.info(
-          `Found user by phone number: ${userRecord.uid}`,
-        );
+        logger.info(`Found user by phone number: ${userRecord.uid}`);
       } else {
         throw error;
       }
     }
 
     // Generate custom token for the actual UID (old or new)
-    const customToken = await admin.auth().createCustomToken(
-      usedUid,
-      {
-        phoneNumber: cleanPhone,
-      },
-    );
+    const customToken = await admin.auth().createCustomToken(usedUid, {
+      phoneNumber: cleanPhone,
+    });
 
-    logger.info(
-      "Custom token generated for " + cleanPhone,
-    );
-    logger.info(
-      "UID: " + usedUid,
-    );
+    logger.info("Custom token generated for " + cleanPhone);
+    logger.info("UID: " + usedUid);
 
     // Split long logger lines if needed
     // logger.info(
@@ -254,23 +250,28 @@ exports.sendOTP = onCall(async (request) => {
   const configDoc = await db.collection("config").doc("beem_africa").get();
   let beemConfig;
 
-
   if (configDoc.exists) {
     beemConfig = configDoc.data();
     console.log("DEBUG: Beem Africa config from Firestore:", beemConfig);
   } else {
     // Fallback to environment variables or hardcoded (not recommended for production)
     beemConfig = {
-      apiKey: process.env.BEEM_API_KEY || "247b432f75dbf2cd",
-      secretKey: process.env.BEEM_SECRET_KEY ||
-        "YTA3Zjg0NmFiZDhlMGZmZTc5YzRhMTk0ZDViZDQwMjE1ZmY4Njc0ZjU5MzVmZDcwMDc1NjdmOGMwYzE5OTQ4Ng==",
+      // apiKey: process.env.BEEM_API_KEY || "d1e4f08dafee8de0",
+      apiKey: "d1e4f08dafee8de0",
+      secretKey:
+        "YTU3NGEwODQyZjgzNGQ5NjEyMmFkNjdhNGEwNzAxOWRiY2FmOWVlMTBhMTk2MmUxODNhZDdkMDdjNjMyZWYxZg==",
+      // process.env.BEEM_SECRET_KEY ||
+      // "YTA3Zjg0NmFiZDhlMGZmZTc5YzRhMTk0ZDViZDQwMjE1ZmY4Njc0ZjU5MzVmZDcwMDc1NjdmOGMwYzE5OTQ4Ng==",
       senderId: process.env.BEEM_SENDER_ID || "SmartChaja",
     };
     console.log("DEBUG: Beem Africa config from ENV:", beemConfig);
   }
 
   if (!beemConfig.apiKey || !beemConfig.secretKey) {
-    logger.error("Beem Africa credentials not configured. beemConfig:", beemConfig);
+    logger.error(
+      "Beem Africa credentials not configured. beemConfig:",
+      beemConfig,
+    );
     throw new HttpsError("failed-precondition", "SMS service not configured.");
   }
 
@@ -317,7 +318,11 @@ exports.sendOTP = onCall(async (request) => {
       throw new HttpsError("internal", "Failed to send SMS. Please try again.");
     }
   } catch (error) {
-    logger.error("Error sending SMS:", error);
+    logger.error("Error sending SMS:", {
+      message: error.message,
+      stack: error.stack,
+      cause: error.cause,
+    });
     await otpDocRef.delete();
     throw new HttpsError("internal", "Failed to send SMS. Please try again.");
   }

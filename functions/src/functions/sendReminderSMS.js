@@ -3,9 +3,9 @@ const admin = require("firebase-admin");
 const axios = require("axios");
 
 // Beem Africa SMS API Configuration
-const BEEM_API_KEY = "247b432f75dbf2cd";
+const BEEM_API_KEY = "d1e4f08dafee8de0";
 const BEEM_SECRET_KEY =
-  "YTA3Zjg0NmFiZDhlMGZmZTc5YzRhMTk0ZDViZDQwMjE1ZmY4Njc0ZjU5MzVmZDcwMDc1NjdmOGMwYzE5OTQ4Ng==";
+  "YTU3NGEwODQyZjgzNGQ5NjEyMmFkNjdhNGEwNzAxOWRiY2FmOWVlMTBhMTk2MmUxODNhZDdkMDdjNjMyZWYxZg==";
 const BEEM_SENDER_ID = "SmartChaja";
 const BEEM_API_ENDPOINT = "https://apisms.beem.africa/v1/send";
 
@@ -145,7 +145,7 @@ exports.sendReminderSMSFunction = functions.scheduler.onSchedule(
 
               console.log(
                 `✅ Reminder sent for rental: ${doc.id} ` +
-                `(${reminderMinutes} mins before end)`,
+                  `(${reminderMinutes} mins before end)`,
               );
               sentCount++;
             } else {
@@ -165,7 +165,7 @@ exports.sendReminderSMSFunction = functions.scheduler.onSchedule(
 
       console.log(
         `📊 Reminder SMS Summary: Sent=${sentCount}, ` +
-        `Failed=${failureCount}`,
+          `Failed=${failureCount}`,
       );
       return { sentCount, failureCount };
     } catch (error) {
