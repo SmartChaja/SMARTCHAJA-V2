@@ -106,7 +106,9 @@ exports.verifyOTPAndGetToken = onCall(async (request) => {
         (cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`)
       ) {
         await admin.auth().updateUser(newUid, {
-          phoneNumber: cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`,
+          phoneNumber: cleanPhone.startsWith("+")
+            ? cleanPhone
+            : `+${cleanPhone}`,
         });
         logger.info(`Updated phone number for user: ${newUid}`);
         userRecord = await admin.auth().getUser(newUid); // Refresh user record
@@ -127,7 +129,9 @@ exports.verifyOTPAndGetToken = onCall(async (request) => {
             // Create new user
             userRecord = await admin.auth().createUser({
               uid: newUid,
-              phoneNumber: cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`,
+              phoneNumber: cleanPhone.startsWith("+")
+                ? cleanPhone
+                : `+${cleanPhone}`,
               disabled: false,
             });
             logger.info(`New user created: ${newUid}`);
